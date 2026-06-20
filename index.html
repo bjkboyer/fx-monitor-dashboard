@@ -1,0 +1,2884 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>FX Monitor Dashboard</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#0b0d10">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FX Monitor">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root{
+  --bg:#0b0d10; --bg2:#12151a; --bg3:#181c22; --surface:#1c2128;
+  --border:#2a3038; --border2:#3a4150;
+  --text:#e8eaed; --text2:#9aa3b0; --text3:#6b7280;
+  --accent:#4f8ef7; --green:#3ddc84; --red:#ff5a5f; --amber:#ffb454; --purple:#a78bfa; --teal:#2dd4bf;
+  --green-bg:#0f2419; --red-bg:#2a1414; --amber-bg:#2a200f; --blue-bg:#0f1c2e; --purple-bg:#1d1830;
+  --radius:10px; --radius-sm:6px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.5}
+body{padding-bottom:3rem}
+::-webkit-scrollbar{height:8px;width:8px}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+::-webkit-scrollbar-track{background:transparent}
+
+.topbar{position:sticky;top:0;z-index:20;background:var(--bg2);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px}
+.brand .dot{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px var(--green-bg)}
+.brand h1{font-size:16px;font-weight:600;letter-spacing:.2px}
+.brand .sub{font-size:12px;color:var(--text3)}
+.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
+.btn{background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-size:12.5px;padding:7px 14px;border-radius:var(--radius-sm);cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all .12s;white-space:nowrap}
+.btn:hover{background:#22272f;border-color:#4a5260}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{background:#3d7de0}
+.btn.danger{border-color:#5a2e2e}
+.btn.danger:hover{background:var(--red-bg)}
+input[type=file]{display:none}
+
+.container{max-width:1320px;margin:0 auto;padding:0 24px}
+
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin:20px 0 24px;overflow-x:auto}
+.tab{padding:10px 18px;font-size:13.5px;color:var(--text2);cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;white-space:nowrap;display:flex;align-items:center;gap:6px}
+.tab.active{color:var(--text);border-bottom-color:var(--accent);font-weight:600}
+.tab:hover:not(.active){color:var(--text)}
+.tab .count{background:var(--bg3);color:var(--text3);font-size:10.5px;padding:1px 6px;border-radius:9px}
+.tab.active .count{background:var(--blue-bg);color:var(--accent)}
+
+.daterange-bar{display:flex;align-items:center;gap:6px;margin:-12px 0 20px;flex-wrap:wrap}
+.dr-pill{font-size:12px;padding:5px 12px;border-radius:14px;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);cursor:pointer;white-space:nowrap}
+.dr-pill:hover{background:#22272f;color:var(--text)}
+.dr-pill.active{background:var(--accent);border-color:var(--accent);color:#fff}
+
+.page{display:none}
+.page.active{display:block;animation:fadein .15s ease}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(2,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g2a{grid-template-columns:2fr 1fr}
+@media (max-width:900px){.g4{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:repeat(2,1fr)}.g2a{grid-template-columns:1fr}.g2{grid-template-columns:1fr}}
+@media (max-width:560px){.g4{grid-template-columns:1fr}.g3{grid-template-columns:1fr}}
+
+@media (max-width:680px){
+  .container{padding:0 12px}
+  .topbar{padding:10px 12px;gap:10px}
+  .brand h1{font-size:14px}
+  .brand .sub{font-size:11px}
+  .controls{width:100%;gap:6px}
+  .controls .btn{font-size:11.5px;padding:7px 10px;flex:1 1 auto;justify-content:center}
+  .status-strip{width:100%;font-size:11px;order:10}
+  .tabs{margin:14px 0 16px;-webkit-overflow-scrolling:touch}
+  .tab{padding:8px 12px;font-size:12.5px}
+  .daterange-bar{margin:-6px 0 14px;gap:4px}
+  .dr-pill{font-size:11px;padding:4px 9px}
+  .metric{padding:12px 14px}
+  .metric .val{font-size:20px}
+  .card{padding:14px 14px}
+  .filter-row{gap:6px}
+  .filter-row select, .filter-row input[type=text]{font-size:12px;padding:6px 8px;flex:1 1 120px}
+  .modal{padding:16px;max-width:94%}
+  .heatmap th.rowhead{width:88px;font-size:9.5px}
+  .hm-cell{height:40px}
+  .hm-cell .hm-wr{font-size:11px}
+  .hm-cell .hm-n{font-size:8.5px}
+  .ms-toggle{font-size:12px;padding:6px 9px}
+  table{font-size:11.5px}
+  th, td{padding:6px 7px}
+  .settled-detail-grid{grid-template-columns:repeat(2,1fr)}
+  .alert{flex-direction:column}
+  .warn-ack-btn{align-self:flex-end}
+  #fIndicatorGrid, #fTrendGrid{grid-template-columns:1fr}
+  .upload-zone{padding:1rem}
+  .trend-block{width:16px;height:24px}
+}
+
+@media (max-width:400px){
+  .brand .dot{display:none}
+  .topbar{flex-direction:column;align-items:flex-start}
+  .metric .lbl{font-size:10.5px}
+  .card h3{font-size:11.5px}
+}
+
+
+.metric{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px}
+.metric .lbl{font-size:11.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+.metric .val{font-size:26px;font-weight:600;letter-spacing:-.3px}
+.metric .sub{font-size:12px;color:var(--text2);margin-top:4px}
+.metric .val.up{color:var(--green)}
+.metric .val.down{color:var(--red)}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;margin-bottom:14px}
+.card h3{font-size:12.5px;font-weight:600;color:var(--text2);margin-bottom:14px;text-transform:uppercase;letter-spacing:.05em;display:flex;align-items:center;justify-content:space-between}
+.card h3 .hint{font-size:11px;color:var(--text3);text-transform:none;letter-spacing:0;font-weight:400}
+
+.badge{display:inline-block;font-size:11px;padding:2px 9px;border-radius:20px;font-weight:600;white-space:nowrap}
+.b-win{background:var(--green-bg);color:var(--green)}
+.b-loss{background:var(--red-bg);color:var(--red)}
+.b-pending{background:var(--amber-bg);color:var(--amber)}
+.b-watchlist{background:var(--blue-bg);color:var(--accent)}
+.b-valid{background:#0f2a26;color:var(--teal)}
+.b-filled{background:var(--purple-bg);color:var(--purple)}
+.b-expired{background:#23262b;color:var(--text3)}
+
+.alert{padding:10px 14px;border-radius:var(--radius-sm);font-size:13px;margin-bottom:8px;display:flex;gap:10px;align-items:flex-start;border-left:3px solid}
+.alert-danger{background:var(--red-bg);border-color:var(--red);color:#ffb3b6}
+.alert-warn{background:var(--amber-bg);border-color:var(--amber);color:#ffd9a0}
+.alert-info{background:var(--blue-bg);border-color:var(--accent);color:#bcd6ff}
+.alert-success{background:var(--green-bg);border-color:var(--green);color:#a8f0c6}
+.alert .ic{font-size:15px;line-height:1.3}
+.alert .detail{font-size:11.5px;opacity:.75;margin-top:3px}
+.alert .action{font-size:11.5px;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.12)}
+.alert .action b{font-weight:600}
+.warn-ack-btn{flex-shrink:0;align-self:flex-start;font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.05);color:inherit;cursor:pointer;white-space:nowrap}
+.warn-ack-btn:hover{background:rgba(255,255,255,.12)}
+
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;padding:8px 10px;font-weight:600;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;top:0;background:var(--surface)}
+td{padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--bg3)}
+.table-wrap{overflow-x:auto;max-height:560px;overflow-y:auto;border-radius:var(--radius-sm)}
+.up{color:var(--green);font-weight:600}
+.down{color:var(--red);font-weight:600}
+.neutral{color:var(--text3)}
+
+.upload-zone{border:1.5px dashed var(--border2);border-radius:var(--radius);padding:28px;text-align:center;color:var(--text2);font-size:13px;cursor:pointer;transition:all .15s}
+.upload-zone:hover{background:var(--bg3);border-color:var(--accent)}
+.upload-zone .big{font-size:14px;color:var(--text);font-weight:600;margin-bottom:4px}
+.upload-zone .small{font-size:12px;color:var(--text3);margin-top:4px}
+
+.filter-row{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+select,input[type=text]{font-size:12.5px;padding:6px 10px;border-radius:var(--radius-sm);border:1px solid var(--border2);background:var(--bg3);color:var(--text);outline:none}
+select:focus,input[type=text]:focus{border-color:var(--accent)}
+.chip{display:inline-block;padding:1px 8px;border-radius:10px;font-size:10.5px;margin:1px;background:var(--bg3);color:var(--text2)}
+
+.ms-dropdown{position:relative;display:inline-block}
+.ms-toggle{font-size:12.5px;padding:6px 10px;border-radius:var(--radius-sm);border:1px solid var(--border2);background:var(--bg3);color:var(--text);cursor:pointer;display:flex;align-items:center;gap:6px}
+.ms-toggle:hover{background:#22272f}
+.ms-caret{font-size:10px;color:var(--text3)}
+.ms-menu{display:none;position:absolute;top:calc(100% + 4px);left:0;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:6px;z-index:30;min-width:160px;box-shadow:0 4px 16px rgba(0,0,0,.4)}
+.ms-menu.show{display:block}
+.ms-menu label{display:flex;align-items:center;gap:8px;padding:6px 8px;font-size:12.5px;cursor:pointer;border-radius:4px;white-space:nowrap}
+.ms-menu label:hover{background:var(--bg3)}
+.ms-menu input[type=checkbox]{accent-color:var(--accent);width:13px;height:13px;cursor:pointer}
+
+.empty-state{text-align:center;padding:60px 20px;color:var(--text3)}
+
+.settled-row{border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;overflow:hidden}
+.settled-head{display:flex;align-items:center;gap:14px;padding:10px 14px;cursor:pointer;background:var(--surface)}
+.settled-head:hover{background:var(--bg3)}
+.settled-head .chev{font-size:11px;color:var(--text3);transition:transform .15s;margin-left:auto}
+.settled-row.open .chev{transform:rotate(90deg)}
+.settled-body{display:none;padding:14px;border-top:1px solid var(--border);background:var(--bg2)}
+.settled-row.open .settled-body{display:block}
+.settled-detail-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px;font-size:12.5px}
+.settled-detail-grid div span{display:block;color:var(--text3);font-size:11px;margin-bottom:2px}
+.settled-notes textarea{width:100%;font-family:inherit;font-size:12.5px;padding:6px 10px;border-radius:var(--radius-sm);border:1px solid var(--border2);background:var(--bg3);color:var(--text);resize:vertical}
+
+.trend-block{display:inline-block;width:10px;height:18px;margin-right:1px;border-radius:1px;cursor:pointer;vertical-align:top}
+.trend-popup{display:none;position:fixed;z-index:200;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:10px 12px;font-size:12px;box-shadow:0 4px 16px rgba(0,0,0,.45);min-width:180px;pointer-events:none}
+.trend-popup.show{display:block}
+.trend-popup .tp-row{display:flex;justify-content:space-between;gap:14px;padding:2px 0}
+.trend-popup .tp-label{color:var(--text3)}
+.trend-popup .tp-title{font-weight:600;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+
+.hist-section{border-top:2px solid var(--border2);margin-top:24px;padding-top:18px}
+.hist-tag{display:inline-block;font-size:10.5px;padding:2px 8px;border-radius:10px;background:var(--purple-bg);color:var(--purple);margin-left:8px;vertical-align:middle}
+
+.heatmap{border-collapse:separate;border-spacing:3px;font-size:12px;width:100%;table-layout:fixed}
+.heatmap th{font-size:10.5px;color:var(--text3);font-weight:500;padding:4px 8px;text-align:center;white-space:nowrap;border:none}
+.heatmap th.rowhead{text-align:left;padding-left:4px;width:140px}
+.heatmap td{padding:0;border:none}
+.hm-cell{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;height:48px;border-radius:6px;cursor:default;position:relative}
+.hm-cell .hm-wr{font-weight:700;font-size:13px}
+.hm-cell .hm-n{font-size:9.5px;opacity:.75;margin-top:1px}
+.hm-empty{background:var(--bg3);color:var(--text3);font-size:10px}
+.empty-state .big{font-size:15px;color:var(--text2);margin-bottom:8px;font-weight:600}
+
+.status-strip{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text3)}
+.status-strip .ok{color:var(--green)}
+.status-strip .missing{color:var(--text3)}
+
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);padding:24px;max-width:420px;width:90%}
+.modal h3{font-size:15px;margin-bottom:10px}
+.modal p{font-size:13px;color:var(--text2);margin-bottom:18px;line-height:1.6}
+.modal .row{display:flex;gap:8px;justify-content:flex-end}
+
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <span class="dot" id="liveDot"></span>
+    <div>
+      <h1>FX Monitor Dashboard</h1>
+      <div class="sub" id="lastUpdated">No data loaded yet</div>
+    </div>
+  </div>
+  <div class="controls">
+    <span class="status-strip" id="statusStrip"></span>
+    <button class="btn primary" onclick="openLiveFeedModal()">🔄 <span id="liveFeedBtnLabel">Connect live feed</span></button>
+    <button class="btn" onclick="document.getElementById('sigUpload').click()">📊 Upload signals CSV</button>
+    <input type="file" id="sigUpload" accept=".csv,.tsv,.txt">
+    <button class="btn" onclick="document.getElementById('oandaUpload').click()">🏦 Upload OANDA CSV</button>
+    <input type="file" id="oandaUpload" accept=".csv">
+    <button class="btn" onclick="document.getElementById('liveUpload').click()">📈 Upload live trade tracker</button>
+    <input type="file" id="liveUpload" accept=".csv,.tsv,.txt">
+    <button class="btn danger" onclick="confirmClear()">🗑 Clear data</button>
+  </div>
+</div>
+
+<div class="container">
+
+<nav class="tabs">
+  <button class="tab active" data-page="overview" onclick="showPage('overview')">Overview</button>
+  <button class="tab" data-page="signals" onclick="showPage('signals')">Signal log <span class="count" id="tabCountSig">0</span></button>
+  <button class="tab" data-page="analytics" onclick="showPage('analytics')">Analytics</button>
+  <button class="tab" data-page="findicators" onclick="showPage('findicators')">F-indicators</button>
+  <button class="tab" data-page="recon" onclick="showPage('recon')">OANDA recon</button>
+  <button class="tab" data-page="live" onclick="showPage('live')">Live trades <span class="count" id="tabCountLive">0</span></button>
+  <button class="tab" data-page="warnings" onclick="showPage('warnings')">Warnings <span class="count" id="tabCountWarn">0</span></button>
+</nav>
+
+<div class="daterange-bar" id="dateRangeBar">
+  <span style="font-size:12px;color:var(--text3);margin-right:4px">Range:</span>
+  <button class="dr-pill" data-range="week" onclick="setDateRange('week')">This week</button>
+  <button class="dr-pill" data-range="7d" onclick="setDateRange('7d')">Last 7 days</button>
+  <button class="dr-pill" data-range="14d" onclick="setDateRange('14d')">Last 14 days</button>
+  <button class="dr-pill" data-range="30d" onclick="setDateRange('30d')">Last 30 days</button>
+  <button class="dr-pill" data-range="mtd" onclick="setDateRange('mtd')">MTD</button>
+  <button class="dr-pill active" data-range="all" onclick="setDateRange('all')">All time</button>
+  <span id="dateRangeLabel" style="font-size:11.5px;color:var(--text3);margin-left:8px"></span>
+</div>
+
+<!-- OVERVIEW -->
+<div class="page active" id="page-overview">
+  <div id="overviewEmpty" class="empty-state">
+    <div class="big">No data loaded</div>
+    <div>Upload your trade signals CSV/TSV and OANDA transaction CSV using the buttons above to populate this dashboard.</div>
+  </div>
+  <div id="overviewContent" style="display:none">
+    <div id="overviewScopeNote" style="font-size:11.5px;color:var(--text3);margin-bottom:12px">Scoped to VALID and VALID-L signals only — WATCHLIST excluded throughout this tab</div>
+    <div class="grid g4" style="margin-bottom:14px">
+      <div class="metric"><div class="lbl">Total executed</div><div class="val" id="k-total">—</div><div class="sub">trades taken</div></div>
+      <div class="metric"><div class="lbl">Win rate</div><div class="val" id="k-wr">—</div><div class="sub" id="k-wrsub">—</div></div>
+      <div class="metric"><div class="lbl">Net P&amp;L (AUD)</div><div class="val" id="k-pnl">—</div><div class="sub" id="k-pnlsub">all executed trades</div></div>
+      <div class="metric"><div class="lbl">Avg R</div><div class="val" id="k-avgr">—</div><div class="sub" id="k-avgrw">avg winner</div></div>
+    </div>
+    <div class="grid g4" style="margin-bottom:14px">
+      <div class="metric"><div class="lbl">OANDA balance</div><div class="val" id="k-bal">—</div><div class="sub" id="k-balsub">latest statement</div></div>
+      <div class="metric"><div class="lbl">Signals generated</div><div class="val" id="k-sigs">—</div><div class="sub" id="k-sigvsub">—</div></div>
+      <div class="metric"><div class="lbl">Mom-v2 signals</div><div class="val" id="k-v2">—</div><div class="sub" id="k-v2sub">—</div></div>
+      <div class="metric"><div class="lbl">Pending open</div><div class="val" id="k-open">—</div><div class="sub" id="k-opensub">awaiting result</div></div>
+    </div>
+
+    <div class="grid g2a">
+      <div class="card">
+        <h3>Equity curve <span class="hint">OANDA balance over time</span></h3>
+        <div id="eqStartNote" style="font-size:11.5px;color:var(--text3);margin-bottom:8px"></div>
+        <div style="position:relative;height:230px"><canvas id="eqChart" role="img" aria-label="OANDA equity curve over time"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>Rolling win rate trend <span class="hint">last 10 trades, in sequence — is performance trending up or down right now</span></h3>
+        <div style="position:relative;height:230px"><canvas id="stratChart" role="img" aria-label="Rolling win rate over the last 10 trades in sequence"></canvas></div>
+      </div>
+    </div>
+
+    <div class="grid g2">
+      <div class="card">
+        <h3>Win rate by session</h3>
+        <div style="position:relative;height:200px"><canvas id="sessChart" role="img" aria-label="Win rate by session"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>P&amp;L by pair</h3>
+        <div style="position:relative;height:200px"><canvas id="pairChart" role="img" aria-label="P&L by currency pair"></canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SIGNALS -->
+<div class="page" id="page-signals">
+  <div id="signalsEmpty" class="empty-state">
+    <div class="big">No signal data loaded</div>
+    <div>Upload your trade signals CSV/TSV to see the full log here.</div>
+  </div>
+  <div id="signalsContent" style="display:none">
+    <div class="filter-row">
+      <select id="fVerd"><option value="">All verdicts</option></select>
+      <select id="fPair"><option value="">All pairs</option></select>
+      <select id="fSession"><option value="">All sessions</option></select>
+      <select id="fVersion"><option value="">All versions</option></select>
+      <div class="ms-dropdown" id="fOutcomeWrap">
+        <button type="button" class="ms-toggle" id="fOutcomeToggle" onclick="toggleOutcomeMenu()">All outcomes <i class="ms-caret">▾</i></button>
+        <div class="ms-menu" id="fOutcomeMenu">
+          <label><input type="checkbox" value="Win" checked> Win</label>
+          <label><input type="checkbox" value="Loss" checked> Loss</label>
+          <label><input type="checkbox" value="Pending" checked> Pending</label>
+          <label><input type="checkbox" value="Never Filled" checked> Never Filled</label>
+          <label><input type="checkbox" value="Manual Close" checked> Manual Close</label>
+        </div>
+      </div>
+      <input type="text" placeholder="Search pair / signal ID..." id="fSearch" style="width:200px">
+      <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text2);cursor:pointer;user-select:none">
+        <input type="checkbox" id="fExcludeWatchlist" checked style="accent-color:var(--accent);width:14px;height:14px;cursor:pointer">
+        Exclude watchlist (trades only)
+      </label>
+      <button class="btn" onclick="resetFilters()">Reset filters</button>
+      <span id="sigCount" style="font-size:12px;color:var(--text3)"></span>
+    </div>
+    <div class="table-wrap">
+      <table id="sigTable">
+        <thead><tr>
+          <th>Date</th><th>Pair</th><th>Dir</th><th>Session</th><th>Score</th><th>Verdict</th>
+          <th>Order</th><th>Version</th><th>Outcome</th><th>P&amp;L (pip)</th><th>P&amp;L (AUD)</th><th>Peak R</th><th>Notes</th><th></th>
+        </tr></thead>
+        <tbody id="sigBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ANALYTICS -->
+<div class="page" id="page-analytics">
+  <div id="analyticsEmpty" class="empty-state">
+    <div class="big">No data loaded</div>
+    <div>Upload your trade signals CSV/TSV to see analytics.</div>
+  </div>
+  <div id="analyticsContent" style="display:none">
+    <div id="analyticsScopeNote" style="font-size:11.5px;color:var(--text3);margin-bottom:12px"></div>
+    <div class="grid g3" style="margin-bottom:14px">
+      <div class="card">
+        <h3>Score distribution</h3>
+        <div style="position:relative;height:190px"><canvas id="scoreChart" role="img" aria-label="Signal score distribution by win and loss"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>Mode split</h3>
+        <div style="position:relative;height:190px"><canvas id="modeChart" role="img" aria-label="Trade mode split"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>Stopped out vs dead-trade exit <span class="hint">does drift cost more than a clean stop?</span></h3>
+        <div style="position:relative;height:190px"><canvas id="overrideChart" role="img" aria-label="Comparison of stopped-out losses vs dead-trade exits, by average dollar loss and average hold time"></canvas></div>
+        <div id="overrideNote" style="font-size:11.5px;margin-top:10px;line-height:1.5"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>When do dead-trade exits cluster? <span class="hint">exit hour, AEST — is this a liquidity-gap problem at specific hours?</span></h3>
+      <div id="deadTradeTimeNote" style="font-size:11.5px;margin-bottom:10px;line-height:1.5"></div>
+      <div style="position:relative;height:200px"><canvas id="deadTradeTimeChart" role="img" aria-label="Dead-trade exit count by hour of day, AEST, compared to stopped-out losses"></canvas></div>
+    </div>
+    <div class="grid g2">
+      <div class="card">
+        <h3>Cumulative P&amp;L by mode <span class="hint">each line is its own trade sequence — not aligned to calendar time</span></h3>
+        <div style="position:relative;height:220px"><canvas id="cumPnlChart" role="img" aria-label="Cumulative P&L comparing Trend Continuation vs Breakout mode"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>R-multiple distribution</h3>
+        <div style="position:relative;height:220px"><canvas id="rMultChart" role="img" aria-label="R-multiple distribution histogram"></canvas></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Session × mode win rate <span class="hint">is a weak session dragging down all modes, or just one?</span></h3>
+      <div id="sessionModeNote" style="font-size:11.5px;color:var(--text3);margin-bottom:10px"></div>
+      <div id="sessionModeHeatmap" style="overflow-x:auto"></div>
+    </div>
+    <div class="card">
+      <h3>Mom-v2 performance breakdown</h3>
+      <div id="v2Stats" style="font-size:13px"></div>
+    </div>
+    <div class="card">
+      <h3>F-indicator quick summary <span class="hint">full breakdown on the F-indicators tab</span></h3>
+      <div id="fSummary" style="font-size:13px"></div>
+    </div>
+    <div class="card">
+      <h3>Verdict tier win rate <span class="hint">are thresholds calibrated right? VALID should outperform VALID-L, which should outperform WATCHLIST</span></h3>
+      <div id="verdictTierNote" style="font-size:11.5px;color:var(--text3);margin-bottom:10px"></div>
+      <div style="position:relative;height:180px"><canvas id="verdictTierChart" role="img" aria-label="Win rate by verdict tier: VALID, VALID-L, WATCHLIST"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Missed opportunity <span class="hint">WATCHLIST &amp; expired signals — what if they'd been taken</span></h3>
+      <div id="missedStats" style="font-size:13px;margin-bottom:14px"></div>
+      <div class="grid g2">
+        <div>
+          <div style="font-size:11.5px;color:var(--text3);margin-bottom:6px">Missed P&amp;L by pair</div>
+          <div style="position:relative;height:200px"><canvas id="missedPairChart" role="img" aria-label="Missed P&L by currency pair"></canvas></div>
+        </div>
+        <div>
+          <div style="font-size:11.5px;color:var(--text3);margin-bottom:6px">Missed P&amp;L by score</div>
+          <div style="position:relative;height:200px"><canvas id="missedScoreChart" role="img" aria-label="Missed P&L by signal score"></canvas></div>
+        </div>
+      </div>
+      <div style="margin-top:14px">
+        <div style="font-size:11.5px;color:var(--text3);margin-bottom:6px">Would-have-won vs would-have-lost, by reason untaken</div>
+        <div style="position:relative;height:180px"><canvas id="missedReasonChart" role="img" aria-label="Missed opportunity outcomes by reason untaken"></canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- F-INDICATORS -->
+<div class="page" id="page-findicators">
+  <div id="findicatorsEmpty" class="empty-state">
+    <div class="big">No signal data loaded</div>
+    <div>Upload your trade signals CSV/TSV to see F-indicator performance.</div>
+  </div>
+  <div id="findicatorsContent" style="display:none">
+    <div id="findicatorsScopeNote" style="font-size:11.5px;color:var(--text3);margin-bottom:12px"></div>
+    <div class="card">
+      <h3>Win rate ranking <span class="hint">best-performing value per indicator vs the mom-v2 baseline</span></h3>
+      <div style="position:relative;height:220px"><canvas id="fRankChart" role="img" aria-label="Win rate at each F-indicator's best-performing value, compared to overall baseline win rate"></canvas></div>
+      <div id="fRankNote" style="font-size:12px;color:var(--text3);margin-top:10px;line-height:1.6"></div>
+    </div>
+    <div class="grid g3" id="fIndicatorGrid"></div>
+    <div class="card">
+      <h3>F-indicator edge over time <span class="hint">rolling win rate, best value vs worst value, in signal order — always full history, not affected by date range</span></h3>
+      <div id="fTrendGrid" class="grid g2"></div>
+    </div>
+  </div>
+</div>
+
+<!-- RECON -->
+<div class="page" id="page-recon">
+  <div id="reconEmpty" class="empty-state">
+    <div class="big">No OANDA data loaded</div>
+    <div>Upload your OANDA transaction CSV to reconcile against your signal log.</div>
+  </div>
+  <div id="reconContent" style="display:none">
+    <div class="grid g3" style="margin-bottom:14px">
+      <div class="metric"><div class="lbl">Closing balance</div><div class="val" id="r-close">—</div></div>
+      <div class="metric"><div class="lbl">Realised P&amp;L</div><div class="val" id="r-pnl">—</div></div>
+      <div class="metric"><div class="lbl">Financing</div><div class="val" id="r-fin">—</div></div>
+    </div>
+    <div class="card">
+      <h3>Matched trades <span class="hint">signal log vs OANDA fills</span></h3>
+      <div id="reconMatchDiagnostic" style="font-size:11.5px;margin-bottom:10px;line-height:1.6"></div>
+      <div class="table-wrap"><table id="reconTable">
+        <thead><tr><th>OANDA ID</th><th>Pair</th><th>Side</th><th>Signal entry</th><th>OANDA fill</th><th>Δ pips</th><th>Signal P&amp;L</th><th>OANDA P&amp;L</th><th>Δ AUD</th><th>Status</th></tr></thead>
+        <tbody id="reconBody"></tbody>
+      </table></div>
+    </div>
+    <div class="card">
+      <h3>OANDA trades not in signal log</h3>
+      <div id="reconOrphan" style="font-size:13px;color:var(--text2)"></div>
+    </div>
+    <div class="card">
+      <h3>Transaction ledger <span class="hint">most recent 150 shown</span></h3>
+      <div class="table-wrap"><table id="txTable">
+        <thead><tr><th>Date</th><th>Type</th><th>Instrument</th><th>Price</th><th>Units</th><th>P&amp;L</th><th>Balance</th></tr></thead>
+        <tbody id="txBody"></tbody>
+      </table></div>
+    </div>
+  </div>
+</div>
+
+<!-- LIVE TRADES -->
+<div class="page" id="page-live">
+  <div id="liveEmpty" class="empty-state">
+    <div class="big">No live trade tracker data loaded</div>
+    <div>Upload your live trade snapshot export (Signal ID, OANDA ID, Current R, Peak R, Minutes Since Fill, 1H Trend vs Direction, etc.) to see open-position trends here. The settled trades review below works from your signal log alone and doesn't need this upload.</div>
+  </div>
+  <div id="liveContent" style="display:none">
+    <div class="grid g4" style="margin-bottom:14px">
+      <div class="metric"><div class="lbl">Open positions tracked</div><div class="val" id="lv-positions">—</div></div>
+      <div class="metric"><div class="lbl">Avg current R</div><div class="val" id="lv-avgr">—</div></div>
+      <div class="metric"><div class="lbl">Est. open P&amp;L</div><div class="val" id="lv-estpnl">—</div><div class="sub">sum across open positions</div></div>
+      <div class="metric"><div class="lbl">Trend-opposed now</div><div class="val" id="lv-opposed">—</div><div class="sub">flipped against position</div></div>
+      <div class="metric"><div class="lbl">Longest held</div><div class="val" id="lv-longest">—</div></div>
+    </div>
+    <div class="card">
+      <h3>Open positions — latest snapshot <span class="hint">cross-referenced against signal log outcome — open (Pending) only</span></h3>
+      <div id="liveMatchNote" style="font-size:11.5px;margin-bottom:10px;line-height:1.6"></div>
+      <div class="table-wrap"><table id="liveTable">
+        <thead><tr><th>Pair</th><th>Dir</th><th>OANDA ID</th><th>Status</th><th>Current R</th><th>Peak R</th><th>Est. P&amp;L</th><th>Held</th><th>Dist to stop (pips)</th><th>1H trend</th><th>Spread</th><th>Chart</th></tr></thead>
+        <tbody id="liveBody"></tbody>
+      </table></div>
+    </div>
+    <div class="card">
+      <h3>R-multiple over trade life <span class="hint">select an open position to inspect</span></h3>
+      <div class="filter-row">
+        <select id="liveSelector"></select>
+      </div>
+      <div style="position:relative;height:220px"><canvas id="liveRChart" role="img" aria-label="R-multiple over time for selected open position"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Trend alignment drift <span class="hint">1H trend vs position direction, open trades only</span></h3>
+      <div id="liveTrendGrid"></div>
+      <div id="trendPopup" class="trend-popup"></div>
+    </div>
+    <div class="card">
+      <h3>Does 1H trend alignment actually predict better R? <span class="hint">avg current R per trend state — uses every snapshot in the file, open or closed</span></h3>
+      <div id="liveAlignStats" style="font-size:13px;margin-bottom:10px"></div>
+      <div style="position:relative;height:180px"><canvas id="liveAlignChart" role="img" aria-label="Average current R by 1H trend alignment state"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>R progression by time held <span class="hint">every snapshot in the file, binned by minutes since fill</span></h3>
+      <div style="position:relative;height:200px"><canvas id="liveHoldChart" role="img" aria-label="Average current R by time held bucket"></canvas></div>
+    </div>
+
+    <div class="hist-section">
+      <div style="display:flex;align-items:center;margin-bottom:14px">
+        <h3 style="margin:0;text-transform:uppercase;letter-spacing:.05em;font-size:12.5px;color:var(--text2)">Historical positions <span class="hint">closed per the signal log — same data, kept separate from live</span></h3>
+        <span class="hist-tag" id="histCountTag">0</span>
+      </div>
+      <div class="card">
+        <h3>Closed positions — latest snapshot before close</h3>
+        <div id="histMatchNote" style="font-size:11.5px;margin-bottom:10px;line-height:1.6"></div>
+        <div class="table-wrap"><table id="histTable">
+          <thead><tr><th>Pair</th><th>Dir</th><th>OANDA ID</th><th>Outcome</th><th>Final R</th><th>Peak R</th><th>P&amp;L (AUD)</th><th>Held</th><th>Dist to stop (pips)</th><th>1H trend</th><th>Spread</th><th>Chart</th></tr></thead>
+          <tbody id="histBody"></tbody>
+        </table></div>
+      </div>
+      <div class="card">
+        <h3>R-multiple over trade life <span class="hint">select a closed position to inspect</span></h3>
+        <div class="filter-row">
+          <select id="histSelector"></select>
+        </div>
+        <div style="position:relative;height:220px"><canvas id="histRChart" role="img" aria-label="R-multiple over time for selected closed position"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>Trend alignment drift <span class="hint">1H trend vs position direction, closed trades only</span></h3>
+        <div id="histTrendFilterNote" style="font-size:11.5px;margin-bottom:8px"></div>
+        <div id="histTrendGrid"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="settledEmpty" class="empty-state">
+    <div class="big">No settled trades yet</div>
+    <div>Upload your trade signals CSV to review closed trades here.</div>
+  </div>
+  <div id="settledContent" style="display:none">
+    <div class="card">
+      <h3>Settled trades review <span class="hint">closed trades from the signal log — click a row to expand</span></h3>
+      <div id="settledFilterNote" style="font-size:11.5px;margin-bottom:8px"></div>
+      <div class="filter-row">
+        <select id="settledOutcomeFilter">
+          <option value="">All outcomes</option>
+          <option value="win">Wins only</option>
+          <option value="loss">Losses only</option>
+        </select>
+        <select id="settledPairFilter"><option value="">All pairs</option></select>
+        <select id="settledSort">
+          <option value="date_desc">Newest first</option>
+          <option value="date_asc">Oldest first</option>
+          <option value="pnl_desc">Biggest winners first</option>
+          <option value="pnl_asc">Biggest losers first</option>
+        </select>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text2);cursor:pointer;user-select:none">
+          <input type="checkbox" id="settledExcludeWatchlist" style="accent-color:var(--accent);width:14px;height:14px;cursor:pointer">
+          Exclude watchlist
+        </label>
+        <span id="settledCount" style="font-size:12px;color:var(--text3)"></span>
+      </div>
+      <div id="settledList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- WARNINGS -->
+<div class="page" id="page-warnings">
+  <div id="warnContainer" class="empty-state">
+    <div class="big">No data loaded</div>
+    <div>Upload your signal and OANDA data to generate health checks and warnings.</div>
+  </div>
+</div>
+
+
+</div>
+
+<div class="modal-overlay" id="clearModal">
+  <div class="modal">
+    <h3>Clear all stored data?</h3>
+    <p>This removes the signal log and OANDA data saved in this browser. This cannot be undone — you'll need to re-upload your CSVs.</p>
+    <div class="row">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn danger" onclick="clearAllData()">Clear data</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="editModal">
+  <div class="modal" style="max-width:480px">
+    <h3 id="editModalTitle">Edit signal</h3>
+    <p style="margin-bottom:10px" id="editModalSub"></p>
+    <p style="margin-bottom:10px" id="editModalChartLink"></p>
+    <div style="display:grid;gap:10px;margin-bottom:16px">
+      <label style="font-size:12px;color:var(--text2)">My Outcome
+        <select id="editOutcome" style="width:100%;margin-top:4px">
+          <option value="">—</option>
+          <option>Win</option><option>Win T1</option><option>Win T1+T2</option>
+          <option>Loss</option><option>Manual Close (Profit)</option><option>Manual Close (Loss)</option>
+          <option>Pending</option><option>Never Filled</option>
+        </select>
+      </label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <label style="font-size:12px;color:var(--text2)">My Close
+          <input type="text" id="editClose" style="width:100%;margin-top:4px">
+        </label>
+        <label style="font-size:12px;color:var(--text2)">Peak R
+          <input type="text" id="editPeakR" style="width:100%;margin-top:4px">
+        </label>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <label style="font-size:12px;color:var(--text2)">P&amp;L (pips)
+          <input type="text" id="editPnlPips" style="width:100%;margin-top:4px">
+        </label>
+        <label style="font-size:12px;color:var(--text2)">P&amp;L (AUD)
+          <input type="text" id="editPnlAud" style="width:100%;margin-top:4px">
+        </label>
+      </div>
+      <label style="font-size:12px;color:var(--text2)">Notes
+        <textarea id="editNotes" rows="3" style="width:100%;margin-top:4px;font-family:inherit;font-size:12.5px;padding:6px 10px;border-radius:var(--radius-sm);border:1px solid var(--border2);background:var(--bg3);color:var(--text);resize:vertical"></textarea>
+      </label>
+    </div>
+    <div class="row">
+      <button class="btn" onclick="closeEditModal()">Cancel</button>
+      <button class="btn primary" onclick="saveEditModal()">Save changes</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="liveFeedModal">
+  <div class="modal" style="max-width:480px">
+    <h3>Connect live feed</h3>
+    <p style="margin-bottom:14px">Paste the webhook URL from your n8n "FX Monitor - Dashboard Live Feed (Serve)" workflow. It updates every 15 minutes from OANDA and your Trade Signals sheet — no credentials are stored here, this only reads the cached snapshot n8n publishes.</p>
+    <div style="display:grid;gap:10px;margin-bottom:16px">
+      <label style="font-size:12px;color:var(--text2)">Webhook URL
+        <input type="text" id="liveFeedUrl" placeholder="https://your-n8n-instance/webhook/fx-monitor-dashboard-feed" style="width:100%;margin-top:4px">
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text2);cursor:pointer;user-select:none">
+        <input type="checkbox" id="liveFeedAutoRefresh" checked style="accent-color:var(--accent);width:14px;height:14px;cursor:pointer">
+        Auto-refresh every 15 minutes while this tab is open
+      </label>
+    </div>
+    <div id="liveFeedStatus" style="font-size:12px;margin-bottom:14px;color:var(--text3)"></div>
+    <div class="row" style="justify-content:space-between">
+      <button class="btn danger" onclick="disconnectLiveFeed()">Disconnect</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn" onclick="closeLiveFeedModal()">Cancel</button>
+        <button class="btn primary" onclick="saveLiveFeedModal()">Connect &amp; fetch now</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY_SIGS = 'fxmonitor_signals_v1';
+const STORAGE_KEY_OANDA = 'fxmonitor_oanda_v1';
+const STORAGE_KEY_LIVE = 'fxmonitor_live_v1';
+const STORAGE_KEY_REVIEW = 'fxmonitor_review_notes_v1';
+const STORAGE_KEY_META = 'fxmonitor_meta_v1';
+
+let SIGS = [];
+let OANDA = [];
+let LIVE = [];
+let REVIEW_NOTES = {};
+let HIST_SELECTED_SIGNAL_ID = null;
+let LIVE_FEED_URL = localStorage.getItem('fxmonitor_live_feed_url_v1') || '';
+let LIVE_FEED_AUTO = localStorage.getItem('fxmonitor_live_feed_auto_v1') !== 'false';
+let liveFeedIntervalHandle = null;
+let charts = {};
+let DATE_RANGE = 'all';
+
+function setDateRange(range){
+  DATE_RANGE = range;
+  document.querySelectorAll('.dr-pill').forEach(p=>p.classList.toggle('active', p.dataset.range===range));
+  const bounds = getDateRangeBounds();
+  const label = document.getElementById('dateRangeLabel');
+  label.textContent = bounds ? `${formatAUDate(bounds.start)} – ${formatAUDate(bounds.end)}` : '';
+  updateAll();
+}
+
+function getDateRangeBounds(){
+  if(DATE_RANGE==='all') return null;
+  const now = new Date();
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+  let start;
+  if(DATE_RANGE==='week'){
+    const dayOfWeek = now.getDay();
+    const diffToMonday = dayOfWeek===0 ? 6 : dayOfWeek-1;
+    start = new Date(now.getFullYear(), now.getMonth(), now.getDate()-diffToMonday, 0,0,0);
+  } else if(DATE_RANGE==='7d'){
+    start = new Date(now.getFullYear(), now.getMonth(), now.getDate()-6, 0,0,0);
+  } else if(DATE_RANGE==='14d'){
+    start = new Date(now.getFullYear(), now.getMonth(), now.getDate()-13, 0,0,0);
+  } else if(DATE_RANGE==='30d'){
+    start = new Date(now.getFullYear(), now.getMonth(), now.getDate()-29, 0,0,0);
+  } else if(DATE_RANGE==='mtd'){
+    start = new Date(now.getFullYear(), now.getMonth(), 1, 0,0,0);
+  } else {
+    return null;
+  }
+  return { start, end };
+}
+
+function inDateRange(date){
+  const bounds = getDateRangeBounds();
+  if(!bounds) return true;
+  if(!date) return false;
+  return date >= bounds.start && date <= bounds.end;
+}
+
+function filterSignalsByRange(rows){
+  const bounds = getDateRangeBounds();
+  if(!bounds) return rows;
+  return rows.filter(s => inDateRange(parseAnyDate(s['Date'], s['Time'])));
+}
+
+function filterOandaByRange(rows){
+  const bounds = getDateRangeBounds();
+  if(!bounds) return rows;
+  return rows.filter(r => inDateRange(parseAnyDate(r['TRANSACTION DATE'])));
+}
+
+function loadFromStorage(){
+  try{
+    const s = localStorage.getItem(STORAGE_KEY_SIGS);
+    const o = localStorage.getItem(STORAGE_KEY_OANDA);
+    const l = localStorage.getItem(STORAGE_KEY_LIVE);
+    const rv = localStorage.getItem(STORAGE_KEY_REVIEW);
+    if(s) SIGS = JSON.parse(s);
+    if(o) OANDA = JSON.parse(o);
+    if(l) LIVE = JSON.parse(l);
+    if(rv) REVIEW_NOTES = JSON.parse(rv);
+  }catch(e){ console.warn('Could not load stored data', e); }
+}
+
+function saveToStorage(){
+  try{
+    localStorage.setItem(STORAGE_KEY_SIGS, JSON.stringify(SIGS));
+    localStorage.setItem(STORAGE_KEY_OANDA, JSON.stringify(OANDA));
+    localStorage.setItem(STORAGE_KEY_LIVE, JSON.stringify(LIVE));
+    localStorage.setItem(STORAGE_KEY_REVIEW, JSON.stringify(REVIEW_NOTES));
+    localStorage.setItem(STORAGE_KEY_META, JSON.stringify({updated: new Date().toISOString()}));
+  }catch(e){ console.warn('Could not save data — storage may be full', e); }
+}
+
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  document.querySelector(`.tab[data-page="${id}"]`).classList.add('active');
+}
+
+function destroyChart(id){ if(charts[id]){ charts[id].destroy(); delete charts[id]; } }
+
+document.getElementById('sigUpload').addEventListener('change', e=>{
+  const f = e.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = ev=>{
+    const parsed = parseCSV(ev.target.result);
+    if(!parsed.length || !('Pair' in parsed[0])){
+      alert('This file doesn\'t look like the trade signals export — expected a "Pair" column. Got columns: ' + (parsed.length ? Object.keys(parsed[0]).slice(0,5).join(', ')+'...' : 'none (empty file?)'));
+      return;
+    }
+    SIGS = parsed;
+    saveToStorage();
+    updateAll();
+  };
+  r.readAsText(f);
+});
+
+document.getElementById('oandaUpload').addEventListener('change', e=>{
+  const f = e.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = ev=>{
+    const parsed = parseCSV(ev.target.result);
+    if(!parsed.length || !('TICKET' in parsed[0])){
+      alert('This file doesn\'t look like the OANDA transaction export — expected a "TICKET" column. Got columns: ' + (parsed.length ? Object.keys(parsed[0]).slice(0,5).join(', ')+'...' : 'none (empty file?)'));
+      return;
+    }
+    OANDA = parsed;
+    saveToStorage();
+    updateAll();
+  };
+  r.readAsText(f);
+});
+
+document.getElementById('liveUpload').addEventListener('change', e=>{
+  const f = e.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = ev=>{
+    const parsed = parseCSV(ev.target.result);
+    if(!parsed.length || !('Signal ID' in parsed[0]) || !('Current R' in parsed[0])){
+      alert('This file doesn\'t look like the live trade tracker export — expected "Signal ID" and "Current R" columns. Got columns: ' + (parsed.length ? Object.keys(parsed[0]).slice(0,6).join(', ')+'...' : 'none (empty file?)'));
+      return;
+    }
+    LIVE = parsed;
+    saveToStorage();
+    updateAll();
+  };
+  r.readAsText(f);
+});
+
+function stripBOM(text){
+  return text.replace(/^\uFEFF/, '').replace(/^\xEF\xBB\xBF/, '');
+}
+
+function detectDelimiter(firstLine){
+  const counts = { ',': (firstLine.match(/,/g)||[]).length, '\t': (firstLine.match(/\t/g)||[]).length, ';': (firstLine.match(/;/g)||[]).length };
+  return Object.entries(counts).sort((a,b)=>b[1]-a[1])[0][0];
+}
+
+function parseCSV(text, delimHint){
+  text = stripBOM(text);
+  const lines = text.split(/\r?\n/);
+  let firstLine = lines[0] || '';
+  while(firstLine !== undefined && firstLine.trim() === '' && lines.length){ lines.shift(); firstLine = lines[0]; }
+  const delim = delimHint || detectDelimiter(firstLine);
+  const headers = parseLine(firstLine, delim).map(h=>stripBOM(h).trim());
+  const rows = [];
+  for(let i=1;i<lines.length;i++){
+    if(!lines[i] || !lines[i].trim()) continue;
+    const vals = parseLine(lines[i], delim);
+    const obj = {};
+    headers.forEach((h,idx)=> obj[h] = stripBOM((vals[idx]||'')).trim());
+    rows.push(obj);
+  }
+  return rows;
+}
+
+function parseLine(line, delim){
+  const res = []; let cur = '', inQ = false;
+  for(let i=0;i<line.length;i++){
+    const c = line[i];
+    if(c === '"'){
+      if(inQ && line[i+1] === '"'){ cur += '"'; i++; }
+      else inQ = !inQ;
+    }
+    else if(c === delim && !inQ){ res.push(cur); cur=''; }
+    else cur += c;
+  }
+  res.push(cur);
+  return res.map(v => v.replace(/^"|"$/g,''));
+}
+
+function confirmClear(){ document.getElementById('clearModal').classList.add('show'); }
+function closeModal(){ document.getElementById('clearModal').classList.remove('show'); }
+
+let editingIndex = null;
+
+function openEditModal(idx){
+  const s = SIGS[idx];
+  if(!s) return;
+  editingIndex = idx;
+  document.getElementById('editModalTitle').textContent = `Edit ${s['Pair']||''} ${s['Direction']||''}`;
+  document.getElementById('editModalSub').textContent = `${s['Signal ID']||''} · ${formatAUDateTime(parseAnyDate(s['Date'], s['Time']))}`;
+  document.getElementById('editModalChartLink').innerHTML = tradingViewLinkHtml(s['Pair'], { interval:'15' });
+  document.getElementById('editOutcome').value = s['My Outcome'] || s['System Outcome'] || '';
+  document.getElementById('editClose').value = s['My Close'] || '';
+  document.getElementById('editPeakR').value = s['Peak R'] || '';
+  document.getElementById('editPnlPips').value = s['My P&L (Pips)'] || '';
+  document.getElementById('editPnlAud').value = s['My P&L (AUD)'] || '';
+  document.getElementById('editNotes').value = s['Notes'] || '';
+  document.getElementById('editModal').classList.add('show');
+}
+
+function closeEditModal(){
+  document.getElementById('editModal').classList.remove('show');
+  editingIndex = null;
+}
+
+function saveEditModal(){
+  if(editingIndex===null) return;
+  const s = SIGS[editingIndex];
+  if(!s) return;
+  s['My Outcome'] = document.getElementById('editOutcome').value;
+  s['My Close'] = document.getElementById('editClose').value;
+  s['Peak R'] = document.getElementById('editPeakR').value;
+  s['My P&L (Pips)'] = document.getElementById('editPnlPips').value;
+  s['My P&L (AUD)'] = document.getElementById('editPnlAud').value;
+  s['Notes'] = document.getElementById('editNotes').value;
+  saveToStorage();
+  closeEditModal();
+  updateAll();
+}
+
+function openLiveFeedModal(){
+  document.getElementById('liveFeedUrl').value = LIVE_FEED_URL;
+  document.getElementById('liveFeedAutoRefresh').checked = LIVE_FEED_AUTO;
+  document.getElementById('liveFeedStatus').textContent = LIVE_FEED_URL ? 'Currently connected.' : 'Not connected — uploads work independently of this.';
+  document.getElementById('liveFeedModal').classList.add('show');
+}
+
+function closeLiveFeedModal(){
+  document.getElementById('liveFeedModal').classList.remove('show');
+}
+
+function saveLiveFeedModal(){
+  const url = document.getElementById('liveFeedUrl').value.trim();
+  const auto = document.getElementById('liveFeedAutoRefresh').checked;
+  if(!url){ alert('Enter the webhook URL from your n8n Serve workflow.'); return; }
+  LIVE_FEED_URL = url;
+  LIVE_FEED_AUTO = auto;
+  localStorage.setItem('fxmonitor_live_feed_url_v1', url);
+  localStorage.setItem('fxmonitor_live_feed_auto_v1', String(auto));
+  closeLiveFeedModal();
+  fetchLiveFeed(true);
+  setupLiveFeedAutoRefresh();
+}
+
+function disconnectLiveFeed(){
+  LIVE_FEED_URL = '';
+  localStorage.removeItem('fxmonitor_live_feed_url_v1');
+  if(liveFeedIntervalHandle) clearInterval(liveFeedIntervalHandle);
+  document.getElementById('liveFeedBtnLabel').textContent = 'Connect live feed';
+  closeLiveFeedModal();
+}
+
+function setupLiveFeedAutoRefresh(){
+  if(liveFeedIntervalHandle) clearInterval(liveFeedIntervalHandle);
+  if(LIVE_FEED_URL && LIVE_FEED_AUTO){
+    liveFeedIntervalHandle = setInterval(()=>fetchLiveFeed(false), 15*60*1000);
+  }
+}
+
+function mapOandaSnapshotToRows(oandaRows){
+  return (oandaRows||[]).map(tx=>({
+    'TICKET': String(tx.id||''),
+    'TRANSACTION DATE': String(tx.time||''),
+    'TRANSACTION TYPE': String(tx.type||''),
+    'DETAILS': String(tx.reason||''),
+    'INSTRUMENT': (tx.instrument||'').replace('_','/'),
+    'PRICE': tx.price!==undefined ? String(tx.price) : '',
+    'UNITS': tx.units!==undefined ? String(tx.units) : '',
+    'DIRECTION': tx.units>0 ? 'Buy' : tx.units<0 ? 'Sell' : '',
+    'SPREAD COST': '',
+    'STOP LOSS': '', 'GUARANTEED STOP LOSS':'', 'TAKE PROFIT':'', 'TRAILING STOP':'',
+    'FINANCING': tx.financing!==undefined ? String(tx.financing) : '',
+    'COMMISSION': tx.commission!==undefined ? String(tx.commission) : '',
+    'GSL FEE':'', 'GSL PREMIUM':'', 'CONVERSION RATE':'',
+    'PL': tx.pl!==undefined ? String(tx.pl) : '',
+    'AMOUNT': '',
+    'BALANCE': tx.accountBalance!==undefined ? String(tx.accountBalance) : '',
+    'TRADE_IDS': JSON.stringify([
+      ...(tx.tradeOpened ? [tx.tradeOpened.tradeID] : []),
+      ...(tx.tradeReduced ? [tx.tradeReduced.tradeID] : []),
+      ...(tx.tradesClosed ? tx.tradesClosed.map(t=>t.tradeID) : []),
+      ...(tx.orderID ? [tx.orderID] : [])
+    ].filter(Boolean))
+  }));
+}
+
+function normalizeRowValues(rows){
+  return (rows||[]).map(row=>{
+    const out = {};
+    for(const key in row){
+      const v = row[key];
+      out[key] = (v===null || v===undefined) ? '' : String(v);
+    }
+    return out;
+  });
+}
+
+async function fetchLiveFeed(isManualConnect){
+  if(!LIVE_FEED_URL) return;
+  const statusEl = document.getElementById('liveFeedStatus');
+  try{
+    const res = await fetch(LIVE_FEED_URL, { method:'GET', cache:'no-store' });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const data = await res.json();
+    if(data.error){ throw new Error(data.error); }
+
+    if(Array.isArray(data.signals) && data.signals.length){ SIGS = normalizeRowValues(data.signals); }
+    if(Array.isArray(data.oanda)){ OANDA = mapOandaSnapshotToRows(data.oanda); }
+    if(Array.isArray(data.live) && data.live.length){ LIVE = normalizeRowValues(data.live); }
+
+    saveToStorage();
+    document.getElementById('liveFeedBtnLabel').textContent = 'Live feed connected';
+    const fetchedAt = formatLastUpdated(new Date());
+    if(statusEl) statusEl.textContent = `Fetched successfully at ${fetchedAt}. Snapshot from n8n: ${data.updatedAt ? formatAUDateTime(parseAnyDate(data.updatedAt)) : 'unknown time'}.`;
+    updateAll();
+  }catch(err){
+    document.getElementById('liveFeedBtnLabel').textContent = 'Live feed error';
+    if(statusEl) statusEl.textContent = 'Fetch failed: ' + err.message + '. Check the URL and that the n8n workflow is active.';
+    if(isManualConnect) alert('Could not fetch from that URL: ' + err.message);
+  }
+}
+
+function clearAllData(){
+  localStorage.removeItem(STORAGE_KEY_SIGS);
+  localStorage.removeItem(STORAGE_KEY_OANDA);
+  localStorage.removeItem(STORAGE_KEY_LIVE);
+  localStorage.removeItem(STORAGE_KEY_META);
+  SIGS = []; OANDA = []; LIVE = [];
+  closeModal();
+  updateAll();
+}
+
+function updateAll(){
+  const statusEl = document.getElementById('statusStrip');
+  const sigStatus = SIGS.length ? `<span class="ok">✓ ${SIGS.length} signals</span>` : `<span class="missing">No signals</span>`;
+  const oandaStatus = OANDA.length ? `<span class="ok">✓ ${OANDA.length} OANDA rows</span>` : `<span class="missing">No OANDA data</span>`;
+  const liveStatus = LIVE.length ? `<span class="ok">✓ ${LIVE.length} live snapshots</span>` : `<span class="missing">No live tracker data</span>`;
+  statusEl.innerHTML = sigStatus + ' · ' + oandaStatus + ' · ' + liveStatus;
+
+  let meta = null;
+  try{ meta = JSON.parse(localStorage.getItem(STORAGE_KEY_META)); }catch(e){}
+  document.getElementById('lastUpdated').textContent = meta ? 'Last updated ' + formatLastUpdated(new Date(meta.updated)) : (SIGS.length||OANDA.length||LIVE.length ? 'Loaded this session' : 'No data loaded yet');
+
+  document.getElementById('tabCountSig').textContent = SIGS.length;
+  document.getElementById('tabCountLive').textContent = LIVE.length ? new Set(LIVE.map(r=>r['OANDA ID'])).size : 0;
+
+  const rangeLabels = { week:'this week', '7d':'the last 7 days', '14d':'the last 14 days', '30d':'the last 30 days', mtd:'month to date', all:'all time' };
+  const scopeText = DATE_RANGE==='all' ? 'Showing all-time data' : `Showing ${rangeLabels[DATE_RANGE]} only — change the range pill above to widen or narrow this`;
+  const scopeNoteEl1 = document.getElementById('analyticsScopeNote');
+  const scopeNoteEl2 = document.getElementById('findicatorsScopeNote');
+  const scopeNoteEl0 = document.getElementById('overviewScopeNote');
+  if(scopeNoteEl0) scopeNoteEl0.textContent = 'Scoped to VALID and VALID-L signals only — WATCHLIST excluded. ' + (DATE_RANGE==='all' ? 'Showing all-time data.' : `Showing ${rangeLabels[DATE_RANGE]} only.`);
+  if(scopeNoteEl1) scopeNoteEl1.textContent = scopeText;
+  if(scopeNoteEl2) scopeNoteEl2.textContent = scopeText + ' (the F9 trend chart at the bottom is always full-history)';
+
+  const hasAny = SIGS.length || OANDA.length || LIVE.length;
+  document.getElementById('overviewEmpty').style.display = SIGS.length ? 'none' : 'block';
+  document.getElementById('overviewContent').style.display = SIGS.length ? 'block' : 'none';
+  document.getElementById('signalsEmpty').style.display = SIGS.length ? 'none' : 'block';
+  document.getElementById('signalsContent').style.display = SIGS.length ? 'block' : 'none';
+  document.getElementById('analyticsEmpty').style.display = SIGS.length ? 'none' : 'block';
+  document.getElementById('analyticsContent').style.display = SIGS.length ? 'block' : 'none';
+  document.getElementById('reconEmpty').style.display = OANDA.length ? 'none' : 'block';
+  document.getElementById('reconContent').style.display = OANDA.length ? 'block' : 'none';
+  document.getElementById('liveEmpty').style.display = LIVE.length ? 'none' : 'block';
+  document.getElementById('liveContent').style.display = LIVE.length ? 'block' : 'none';
+  const hasSettled = SIGS.some(s => isDecided(outcomeOf(s)));
+  document.getElementById('settledEmpty').style.display = hasSettled ? 'none' : 'block';
+  document.getElementById('settledContent').style.display = hasSettled ? 'block' : 'none';
+
+  if(SIGS.length){ buildKPIs(); buildSignalTable(); buildAnalytics(); buildFIndicators(); buildSettledTradesReview(); }
+  if(OANDA.length){ buildRecon(); }
+  if(LIVE.length){ buildLiveTracker(); }
+  buildWarnings();
+}
+
+function outcomeOf(s){ return s['My Outcome'] || s['System Outcome'] || ''; }
+function isWin(o){ return o.toLowerCase().startsWith('win'); }
+function isLoss(o){ return o.toLowerCase().includes('loss'); }
+function isDecided(o){ return isWin(o) || isLoss(o); }
+
+const F_KEYS = ['F1','F2','F3','F4','F7','F8','F9'];
+const F_LABELS = {
+  F1:'4H trend structure clarity', F2:'Daily/4H bias alignment', F3:'Trigger quality',
+  F4:'Entry distance from pullback', F7:'Spread penalty', F8:'News clear', F9:'Daily candle body direction'
+};
+
+function parseFBreakdown(str){
+  const out = {};
+  if(!str) return out;
+  const re = /F(\d+):(-?\d+)/g;
+  let m;
+  while((m = re.exec(str)) !== null){
+    out['F'+m[1]] = parseInt(m[2]);
+  }
+  return out;
+}
+
+function fValuesFor(sig){
+  return parseFBreakdown(sig['Score Breakdown'] || sig['Pre Score Breakdown'] || '');
+}
+
+
+function buildKPIs(){
+  const exec = filterSignalsByRange(SIGS.filter(s => s['Auto Trade'] === 'Traded' && ['VALID','VALID-L'].includes(s['Verdict'])));
+  const decided = exec.filter(s => isDecided(outcomeOf(s)));
+  const wins = decided.filter(s => isWin(outcomeOf(s)));
+  const wr = decided.length ? ((wins.length/decided.length)*100).toFixed(1) : null;
+
+  const signalLogPnl = exec.reduce((a,s)=> a + (parseFloat(s['My P&L (AUD)'])||0), 0);
+
+  const oandaInRange = filterOandaByRange(OANDA);
+  const oandaCloses = oandaInRange.filter(r=>r['TRANSACTION TYPE']==='ORDER_FILL' && r['PL'] && parseFloat(r['PL'])!==0);
+  const oandaRealisedPnl = oandaCloses.reduce((a,r)=>a+(parseFloat(r['PL'])||0),0);
+  const oandaFinancing = oandaInRange.filter(r=>r['FINANCING']&&parseFloat(r['FINANCING'])!==0).reduce((a,r)=>a+(parseFloat(r['FINANCING'])||0),0);
+  const netPnl = OANDA.length ? (oandaRealisedPnl + oandaFinancing) : signalLogPnl;
+  const pnlSourceLabel = OANDA.length ? ('OANDA realised P&L + financing' + (DATE_RANGE!=='all' ? ' · in range' : '')) : 'signal log P&L (upload OANDA CSV to reconcile)';
+
+  const peakRs = decided.filter(s=>s['Peak R']).map(s=>parseFloat(s['Peak R'])||0);
+  const avgR = peakRs.length ? (peakRs.reduce((a,b)=>a+b,0)/peakRs.length).toFixed(2) : null;
+  const winR = wins.filter(s=>s['Peak R']).map(s=>parseFloat(s['Peak R'])||0);
+  const avgWinR = winR.length ? (winR.reduce((a,b)=>a+b,0)/winR.length).toFixed(2) : null;
+
+  setMetric('k-total', exec.length || '—');
+  setMetric('k-wr', wr!==null ? wr+'%' : '—', wr!==null ? (wr>=50?'up':'down') : '');
+  document.getElementById('k-wrsub').textContent = wins.length+' W / '+(decided.length-wins.length)+' L · VALID/VALID-L only';
+  setMetric('k-pnl', netPnl ? (netPnl>=0?'+':'')+'$'+netPnl.toFixed(2) : '—', netPnl>0?'up':netPnl<0?'down':'');
+  document.getElementById('k-pnlsub').textContent = pnlSourceLabel;
+  setMetric('k-avgr', avgR ?? '—');
+  document.getElementById('k-avgrw').textContent = 'avg winner R: '+(avgWinR ?? '—');
+
+  const balRows = OANDA.filter(r=>r['BALANCE']&&r['BALANCE'].trim());
+  const balRowsInRange = oandaInRange.filter(r=>r['BALANCE']&&r['BALANCE'].trim());
+  const lastBal = balRows.length ? parseFloat(balRows[balRows.length-1]['BALANCE']) : null;
+  const firstBalRange = balRowsInRange.length ? parseFloat(balRowsInRange[0]['BALANCE']) : (balRows.length ? parseFloat(balRows[0]['BALANCE']) : null);
+  setMetric('k-bal', lastBal!==null ? '$'+lastBal.toFixed(2) : '—');
+  document.getElementById('k-balsub').textContent = firstBalRange!==null ? `${DATE_RANGE==='all'?'opened':'range start'} $${firstBalRange.toFixed(2)} · change $${(lastBal-firstBalRange).toFixed(2)}` : 'latest statement';
+
+  const total = exec.length;
+  setMetric('k-sigs', total || '—');
+  document.getElementById('k-sigvsub').textContent = 'VALID + VALID-L only';
+
+  const v2 = exec.filter(s=>s['Config Version']==='mom-v2');
+  const v2dec = v2.filter(s=>isDecided(s['System Outcome']||''));
+  const v2w = v2dec.filter(s=>isWin(s['System Outcome']||''));
+  setMetric('k-v2', v2.length || '—');
+  document.getElementById('k-v2sub').textContent = v2dec.length ? ((v2w.length/v2dec.length*100).toFixed(0)+'% WR ('+v2dec.length+'/50 decided)') : '0 decided yet';
+
+  const pending = exec.filter(s=> outcomeOf(s)==='Pending');
+  setMetric('k-open', pending.length);
+  if(LIVE.length){
+    const liveOpenCount = new Set(LIVE.map(r=>r['OANDA ID'])).size;
+    document.getElementById('k-opensub').textContent = `${liveOpenCount} tracked live — see Live trades tab`;
+  } else {
+    document.getElementById('k-opensub').textContent = 'awaiting result';
+  }
+
+  buildEquityCurve(DATE_RANGE==='all' ? balRows : balRowsInRange);
+  buildStratChart();
+  buildSessionChart();
+  buildPairChart();
+}
+
+function setMetric(id, val, cls){
+  const el = document.getElementById(id);
+  el.textContent = val;
+  el.className = 'val' + (cls ? ' '+cls : '');
+}
+
+function chartTextColor(){ return '#9aa3b0'; }
+function chartGridColor(){ return 'rgba(255,255,255,.06)'; }
+
+function baseScales(extra){
+  return Object.assign({
+    x:{ ticks:{ color: chartTextColor(), font:{size:10} }, grid:{ color: chartGridColor() } },
+    y:{ ticks:{ color: chartTextColor(), font:{size:10} }, grid:{ color: chartGridColor() } }
+  }, extra||{});
+}
+
+function safeStr(v){
+  if(v===null || v===undefined) return '';
+  return String(v).trim();
+}
+
+function parseAnyDate(dateStr, timeStr){
+  if(!dateStr) return null;
+  dateStr = dateStr.trim();
+  let m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m){
+    const timePart = (dateStr.match(/(\d{2}):(\d{2}):(\d{2})/)||[]);
+    return new Date(parseInt(m[1]), parseInt(m[2])-1, parseInt(m[3]), parseInt(timePart[1])||0, parseInt(timePart[2])||0, parseInt(timePart[3])||0);
+  }
+  m = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(m){
+    const hh = timeStr ? (timeStr.match(/(\d{1,2}):(\d{2})/)||[]) : [];
+    return new Date(parseInt(m[3]), parseInt(m[2])-1, parseInt(m[1]), parseInt(hh[1])||0, parseInt(hh[2])||0);
+  }
+  const d = new Date(dateStr);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+const AU_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function formatAUDate(date){
+  if(!date) return '—';
+  const dd = String(date.getDate()).padStart(2,'0');
+  const mmm = AU_MONTHS[date.getMonth()];
+  const yy = String(date.getFullYear()).slice(2);
+  return `${dd}-${mmm}-${yy}`;
+}
+
+function formatAUDateTime(date){
+  if(!date) return '—';
+  const hh = String(date.getHours()).padStart(2,'0');
+  const min = String(date.getMinutes()).padStart(2,'0');
+  return `${formatAUDate(date)} ${hh}:${min}`;
+}
+
+function formatAUDateSlash(date){
+  if(!date) return '—';
+  const dd = String(date.getDate()).padStart(2,'0');
+  const mm = String(date.getMonth()+1).padStart(2,'0');
+  return `${dd}/${mm}/${date.getFullYear()}`;
+}
+
+function formatLastUpdated(date){
+  if(!date) return '—';
+  const dd = String(date.getDate()).padStart(2,'0');
+  const m = date.getMonth()+1;
+  const yyyy = date.getFullYear();
+  let h = date.getHours();
+  const min = String(date.getMinutes()).padStart(2,'0');
+  const sec = String(date.getSeconds()).padStart(2,'0');
+  const ampm = h>=12 ? 'PM' : 'AM';
+  h = h % 12; if(h===0) h = 12;
+  return `${dd}/${m}/${yyyy}, ${h}:${min}:${sec} ${ampm}`;
+}
+
+function tradingViewUrl(pair, opts){
+  opts = opts || {};
+  if(!pair) return null;
+  const symbol = pair.replace('/','').toUpperCase();
+  const interval = opts.interval || '15';
+  let url = `https://www.tradingview.com/chart/?symbol=OANDA:${symbol}&interval=${interval}`;
+  return url;
+}
+
+function tradingViewLinkHtml(pair, opts){
+  const url = tradingViewUrl(pair, opts);
+  if(!url) return '';
+  const label = (opts && opts.label) || 'Open in TradingView';
+  return `<a href="${url}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:4px;font-size:11.5px;color:var(--accent)">📈 ${label}</a>`;
+}
+
+function formatDateShort(dateStr){
+  const d = parseAnyDate(dateStr);
+  return d ? formatAUDate(d) : dateStr;
+}
+
+function detectBalanceReset(balRows){
+  for(let i=1;i<balRows.length;i++){
+    const prev = parseFloat(balRows[i-1]['BALANCE']);
+    const cur = parseFloat(balRows[i]['BALANCE']);
+    if(isNaN(prev)||isNaN(cur)) continue;
+    const jump = Math.abs(cur-prev);
+    if(jump > 10000 || (prev>0 && jump/prev > 0.5)){
+      return i;
+    }
+  }
+  return 0;
+}
+
+function buildEquityCurve(rows){
+  destroyChart('eq');
+  const allBalRows = rows.filter(r=>r['BALANCE']&&r['TRANSACTION DATE']);
+  if(!allBalRows.length) return;
+
+  let manualCutoffISO = localStorage.getItem('fxmonitor_eq_cutoff_v1');
+  let startIdx = 0;
+  let autoDetected = false;
+
+  if(manualCutoffISO){
+    const cutoffTime = new Date(manualCutoffISO).getTime();
+    const idx = allBalRows.findIndex(r => (parseAnyDate(r['TRANSACTION DATE'])?.getTime()||0) >= cutoffTime);
+    startIdx = idx>=0 ? idx : 0;
+  } else {
+    startIdx = detectBalanceReset(allBalRows);
+    autoDetected = startIdx > 0;
+  }
+
+  const balRows = allBalRows.slice(startIdx);
+  const note = document.getElementById('eqStartNote');
+  if(note){
+    if(manualCutoffISO){
+      note.innerHTML = `Starting from your chosen date · <a href="javascript:void(0)" onclick="clearEquityCutoff()">reset to auto</a>`;
+    } else if(autoDetected){
+      const resetDate = formatAUDate(parseAnyDate(allBalRows[startIdx]['TRANSACTION DATE']));
+      note.innerHTML = `Auto-detected a balance reset on ${resetDate} (likely a practice account funding change) — chart starts there. <a href="javascript:void(0)" onclick="openEquityCutoffPicker()">change</a>`;
+    } else {
+      note.innerHTML = `<a href="javascript:void(0)" onclick="openEquityCutoffPicker()">Set a custom starting date</a> if this includes an account reset you want excluded.`;
+    }
+  }
+
+  const data = balRows.map(r=>({
+    x: formatDateShort(r['TRANSACTION DATE']),
+    y: parseFloat(r['BALANCE']),
+    fullDate: formatAUDateTime(parseAnyDate(r['TRANSACTION DATE']))
+  }));
+  if(!data.length) return;
+  const last = data[data.length-1].y, first = data[0].y;
+  const color = last>=first ? '#3ddc84' : '#ff5a5f';
+  charts.eq = new Chart(document.getElementById('eqChart').getContext('2d'), {
+    type:'line',
+    data:{ datasets:[{ data, borderColor:color, backgroundColor: color+'22', pointRadius:0, pointHoverRadius:5, pointHitRadius:10, pointBackgroundColor:color, pointBorderColor:'#0b0d10', pointBorderWidth:1.5, borderWidth:1.5, fill:true, tension:.2, parsing:{xAxisKey:'x',yAxisKey:'y'} }] },
+    options:{ responsive:true, maintainAspectRatio:false, interaction:{ mode:'nearest', intersect:false },
+      plugins:{ legend:{display:false},
+        tooltip:{ backgroundColor:'#1c2128', borderColor:'#3a4150', borderWidth:1, titleColor:'#e8eaed', bodyColor:'#e8eaed', padding:10, displayColors:false,
+          callbacks:{
+            title: ctx => data[ctx[0].dataIndex].fullDate,
+            label: ctx => 'Balance: $' + ctx.parsed.y.toFixed(2)
+          } } },
+      scales: baseScales({ x:{ type:'category', ticks:{ maxTicksLimit:7, color:chartTextColor(), font:{size:10} }, grid:{display:false} },
+                            y:{ ticks:{ color:chartTextColor(), font:{size:10}, callback:v=>'$'+v.toFixed(0) }, grid:{color:chartGridColor()} } }) }
+  });
+}
+
+function openEquityCutoffPicker(){
+  const input = prompt('Show the equity curve starting from this date (dd/mm/yyyy):', formatAUDateSlash(new Date()));
+  if(!input) return;
+  const m = input.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(!m){ alert('Please use dd/mm/yyyy format.'); return; }
+  const d = new Date(parseInt(m[3]), parseInt(m[2])-1, parseInt(m[1]));
+  if(isNaN(d.getTime())){ alert('That date doesn\'t look valid.'); return; }
+  localStorage.setItem('fxmonitor_eq_cutoff_v1', d.toISOString());
+  buildKPIs();
+}
+
+function clearEquityCutoff(){
+  localStorage.removeItem('fxmonitor_eq_cutoff_v1');
+  buildKPIs();
+}
+
+function buildStratChart(){
+  destroyChart('strat');
+  const valid = filterSignalsByRange(SIGS.filter(s=>['VALID','VALID-L'].includes(s['Verdict']) && s['Auto Trade']==='Traded'));
+  const decided = valid.filter(s=>isDecided(outcomeOf(s)))
+    .map(s=>({ s, date: parseAnyDate(s['Date'], s['Time']), win: isWin(outcomeOf(s)) ? 1 : 0 }))
+    .filter(x=>x.date)
+    .sort((a,b)=>a.date.getTime()-b.date.getTime());
+
+  const window_ = 10;
+  const rollWR = decided.map((_,i)=>{
+    const slice = decided.slice(Math.max(0,i-window_+1), i+1);
+    return slice.length>=3 ? slice.reduce((a,b)=>a+b.win,0)/slice.length*100 : null;
+  });
+  const overallWR = decided.length ? decided.reduce((a,b)=>a+b.win,0)/decided.length*100 : 0;
+
+  charts.strat = new Chart(document.getElementById('stratChart').getContext('2d'), {
+    type:'line',
+    data:{ labels: decided.map((d,i)=>i+1), datasets:[
+      { label:'Rolling 10-trade WR', data: rollWR, borderColor:'#4f8ef7', backgroundColor:'#4f8ef722', pointRadius:1.5, borderWidth:1.8, tension:.25, fill:false, spanGaps:true },
+      { label:`Overall WR (${overallWR.toFixed(0)}%)`, data: decided.map(()=>overallWR), borderColor:'#6b7280', borderDash:[5,4], pointRadius:0, borderWidth:1.2 }
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ position:'bottom', labels:{color:chartTextColor(), font:{size:10}, boxWidth:10} } },
+      scales: baseScales({ x:{ title:{display:true,text:'trade sequence',color:chartTextColor(),font:{size:10}}, ticks:{display:false}, grid:{display:false} },
+                            y:{ min:0, max:100, ticks:{ color:chartTextColor(), font:{size:10}, callback:v=>v+'%' }, grid:{color:chartGridColor()} } }) }
+  });
+}
+
+function buildSessionChart(){
+  destroyChart('sess');
+  const valid = filterSignalsByRange(SIGS.filter(s=>['VALID','VALID-L'].includes(s['Verdict']) && s['Auto Trade']==='Traded'));
+  const sessList = [...new Set(valid.map(s=>s['Session']||'').filter(Boolean))];
+  const decided = valid.filter(s=> isDecided(s['System Outcome']||s['My Outcome']||''));
+  const wins = decided.filter(s=> isWin(s['System Outcome']||s['My Outcome']||''));
+  const sessWR = sessList.map(sess=>{
+    const d = decided.filter(s=>s['Session']===sess);
+    const w = wins.filter(s=>s['Session']===sess);
+    return d.length ? Math.round(w.length/d.length*100) : 0;
+  });
+  charts.sess = new Chart(document.getElementById('sessChart').getContext('2d'), {
+    type:'bar',
+    data:{ labels: sessList.map(s=>s.replace(/[^\w\s\/]/g,'').trim()),
+      datasets:[{ data:sessWR, backgroundColor: sessWR.map(v=>v>=50?'#3ddc84':'#ff5a5f'), borderWidth:0, borderRadius:4 }] },
+    options:{ responsive:true, maintainAspectRatio:false, indexAxis:'y', plugins:{legend:{display:false}},
+      scales: baseScales({ x:{ ticks:{ color:chartTextColor(), font:{size:10}, callback:v=>v+'%' }, max:100, grid:{color:chartGridColor()} },
+                            y:{ ticks:{ color:chartTextColor(), font:{size:10} }, grid:{display:false} } }) }
+  });
+}
+
+function buildPairChart(){
+  destroyChart('pair');
+  const valid = filterSignalsByRange(SIGS.filter(s=>['VALID','VALID-L'].includes(s['Verdict']) && s['Auto Trade']==='Traded'));
+  const pairs = [...new Set(valid.map(s=>s['Pair']))].filter(Boolean);
+  const pnls = pairs.map(p=>valid.filter(s=>s['Pair']===p).reduce((a,s)=>a+(parseFloat(s['My P&L (AUD)'])||0),0));
+  const sorted = pairs.map((p,i)=>({p,v:pnls[i]})).sort((a,b)=>b.v-a.v);
+  charts.pair = new Chart(document.getElementById('pairChart').getContext('2d'), {
+    type:'bar',
+    data:{ labels: sorted.map(x=>x.p), datasets:[{ data: sorted.map(x=>x.v), backgroundColor: sorted.map(x=>x.v>=0?'#3ddc84':'#ff5a5f'), borderWidth:0, borderRadius:4 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+      scales: baseScales({ x:{ ticks:{ color:chartTextColor(), font:{size:9}, maxRotation:45 }, grid:{display:false} },
+                            y:{ ticks:{ color:chartTextColor(), font:{size:10}, callback:v=>'$'+v.toFixed(0) }, grid:{color:chartGridColor()} } }) }
+  });
+}
+
+function buildSignalTable(){
+  const pairs = [...new Set(SIGS.map(s=>s['Pair']))].filter(Boolean).sort();
+  const verds = [...new Set(SIGS.map(s=>s['Verdict']))].filter(Boolean).sort();
+  const versions = [...new Set(SIGS.map(s=>s['Config Version']))].filter(Boolean).sort();
+  const sessions = [...new Set(SIGS.map(s=>s['Session']||'').filter(Boolean))];
+
+  fillSelect('fPair', pairs, 'All pairs');
+  fillSelect('fVerd', verds, 'All verdicts');
+  fillSelect('fVersion', versions, 'All versions');
+  fillSelect('fSession', sessions, 'All sessions');
+
+  ['fVerd','fPair','fSession','fVersion'].forEach(id=>{
+    document.getElementById(id).onchange = renderSigTable;
+  });
+  document.getElementById('fSearch').oninput = renderSigTable;
+  document.getElementById('fExcludeWatchlist').onchange = renderSigTable;
+  document.querySelectorAll('#fOutcomeMenu input[type=checkbox]').forEach(cb=>{
+    cb.onchange = ()=>{ updateOutcomeToggleLabel(); renderSigTable(); };
+  });
+  updateOutcomeToggleLabel();
+  renderSigTable();
+}
+
+function toggleOutcomeMenu(){
+  document.getElementById('fOutcomeMenu').classList.toggle('show');
+}
+document.addEventListener('click', e=>{
+  const wrap = document.getElementById('fOutcomeWrap');
+  if(wrap && !wrap.contains(e.target)) document.getElementById('fOutcomeMenu').classList.remove('show');
+});
+
+function getSelectedOutcomes(){
+  return Array.from(document.querySelectorAll('#fOutcomeMenu input[type=checkbox]:checked')).map(cb=>cb.value);
+}
+
+function updateOutcomeToggleLabel(){
+  const all = document.querySelectorAll('#fOutcomeMenu input[type=checkbox]');
+  const checked = getSelectedOutcomes();
+  const label = checked.length === all.length ? 'All outcomes' : checked.length === 0 ? 'No outcomes' : checked.length+' outcomes selected';
+  document.getElementById('fOutcomeToggle').innerHTML = label + ' <i class="ms-caret">▾</i>';
+}
+
+function fillSelect(id, items, allLabel){
+  const sel = document.getElementById(id);
+  const cur = sel.value;
+  sel.innerHTML = `<option value="">${allLabel}</option>` + items.map(i=>`<option>${i}</option>`).join('');
+  if(items.includes(cur)) sel.value = cur;
+}
+
+function resetFilters(){
+  ['fVerd','fPair','fSession','fVersion'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('fSearch').value='';
+  document.getElementById('fExcludeWatchlist').checked = true;
+  document.querySelectorAll('#fOutcomeMenu input[type=checkbox]').forEach(cb=>cb.checked=true);
+  updateOutcomeToggleLabel();
+  renderSigTable();
+}
+
+function renderSigTable(){
+  const verd = document.getElementById('fVerd').value;
+  const pair = document.getElementById('fPair').value;
+  const sess = document.getElementById('fSession').value;
+  const ver = document.getElementById('fVersion').value;
+  const selectedOutcomes = getSelectedOutcomes();
+  const search = document.getElementById('fSearch').value.toLowerCase();
+  const excludeWatchlist = document.getElementById('fExcludeWatchlist').checked;
+
+  const filtered = SIGS.filter(s=>{
+    if(excludeWatchlist && s['Verdict']==='WATCHLIST') return false;
+    if(verd && s['Verdict']!==verd) return false;
+    if(pair && s['Pair']!==pair) return false;
+    if(sess && s['Session']!==sess) return false;
+    if(ver && s['Config Version']!==ver) return false;
+    const o = outcomeOf(s);
+    const matchesAny = selectedOutcomes.some(sel => o.toLowerCase().includes(sel.toLowerCase()));
+    if(!matchesAny) return false;
+    if(search && !(s['Pair']||'').toLowerCase().includes(search) && !(s['Signal ID']||'').toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  filtered.sort((a,b)=>{
+    const da = parseAnyDate(a['Date'], a['Time'])?.getTime() || 0;
+    const db = parseAnyDate(b['Date'], b['Time'])?.getTime() || 0;
+    return db - da;
+  });
+
+  document.getElementById('sigCount').textContent = filtered.length + ' signals';
+  const tbody = document.getElementById('sigBody');
+  tbody.innerHTML = filtered.slice(0,300).map(s=>{
+    const o = outcomeOf(s);
+    const pnlPip = parseFloat(s['My P&L (Pips)'])||0;
+    const pnlAud = parseFloat(s['My P&L (AUD)'])||0;
+    const pnlClass = pnlPip>0?'up':pnlPip<0?'down':'neutral';
+    const audClass = pnlAud>0?'up':pnlAud<0?'down':'neutral';
+    const bClass = isWin(o)?'b-win':isLoss(o)?'b-loss':o==='Pending'?'b-pending':o==='Never Filled'?'b-expired':'b-watchlist';
+    const vClass = s['Verdict']==='VALID'?'b-valid':s['Verdict']==='VALID-L'?'b-filled':'b-watchlist';
+    const noteEsc = (s['Notes']||'').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+    const sigIdx = SIGS.indexOf(s);
+    return `<tr>
+      <td style="white-space:nowrap">${formatDateShort(s['Date'])}</td>
+      <td><b>${s['Pair']||''}</b></td>
+      <td><span style="${s['Direction']==='Long'?'color:#3ddc84':'color:#ff5a5f'}">${s['Direction']||''}</span></td>
+      <td style="font-size:11px">${(s['Session']||'').replace(/[^\w\s\/]/g,'').trim()}</td>
+      <td style="font-weight:600">${s['Score']||''}</td>
+      <td><span class="badge ${vClass}">${s['Verdict']||''}</span></td>
+      <td><span class="badge ${s['Auto Trade']==='Traded'?'b-filled':'b-watchlist'}">${s['Order Type']||''}</span></td>
+      <td><span style="font-size:11px;color:var(--text3)">${s['Config Version']||''}</span></td>
+      <td><span class="badge ${bClass}">${o||'—'}</span></td>
+      <td class="${pnlClass}">${pnlPip?pnlPip.toFixed(1):'—'}</td>
+      <td class="${audClass}">${pnlAud?'$'+pnlAud.toFixed(2):'—'}</td>
+      <td>${s['Peak R']||'—'}</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--text3)" title="${noteEsc}">${(s['Notes']||'').substring(0,70)}</td>
+      <td><button class="btn" style="padding:3px 8px;font-size:11px" onclick="openEditModal(${sigIdx})">Edit</button></td>
+    </tr>`;
+  }).join('');
+  if(filtered.length>300) tbody.innerHTML += `<tr><td colspan="14" style="text-align:center;color:var(--text3);font-size:12px">Showing 300 of ${filtered.length} — narrow filters to see more</td></tr>`;
+  if(!filtered.length) tbody.innerHTML = `<tr><td colspan="14" style="text-align:center;color:var(--text3);padding:30px">No signals match these filters</td></tr>`;
+}
+
+function buildAnalytics(){
+  const exec = filterSignalsByRange(SIGS.filter(s=>s['Auto Trade']==='Traded'));
+
+  destroyChart('score');
+  const scores = [...new Set(exec.map(s=>parseInt(s['Score'])).filter(n=>!isNaN(n)))].sort((a,b)=>a-b);
+  const winsByScore = scores.map(sc=>exec.filter(s=>parseInt(s['Score'])===sc && isWin(s['System Outcome']||'')).length);
+  const lossByScore = scores.map(sc=>exec.filter(s=>parseInt(s['Score'])===sc && isLoss(s['System Outcome']||'')).length);
+  charts.score = new Chart(document.getElementById('scoreChart').getContext('2d'), {
+    type:'bar',
+    data:{ labels: scores.map(s=>'Score '+s), datasets:[
+      { label:'Win', data:winsByScore, backgroundColor:'#3ddc84', borderWidth:0, borderRadius:3 },
+      { label:'Loss', data:lossByScore, backgroundColor:'#ff5a5f', borderWidth:0, borderRadius:3 }
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:true, position:'bottom', labels:{color:chartTextColor(), font:{size:10}, boxWidth:10} } },
+      scales: baseScales({ x:{ stacked:true, ticks:{color:chartTextColor(), font:{size:10}}, grid:{display:false} },
+                            y:{ stacked:true, ticks:{color:chartTextColor(), font:{size:10}}, grid:{color:chartGridColor()} } }) }
+  });
+
+  destroyChart('mode');
+  const modes = [...new Set(exec.map(s=>s['Mode']||'').filter(Boolean))];
+  const modeCounts = modes.map(m=>exec.filter(s=>s['Mode']===m).length);
+  charts.mode = new Chart(document.getElementById('modeChart').getContext('2d'), {
+    type:'doughnut',
+    data:{ labels: modes, datasets:[{ data: modeCounts, backgroundColor:['#4f8ef7','#2dd4bf','#a78bfa','#ffb454'], borderWidth:0 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{color:chartTextColor(), font:{size:10}, boxWidth:10} } } }
+  });
+
+  destroyChart('override');
+  const losses = exec.filter(s=>isLoss(outcomeOf(s)));
+  const classifyExit = s=>{
+    const o = (outcomeOf(s)||'').toLowerCase();
+    if(o.includes('dead trade')) return 'Dead-trade exit';
+    return 'Stopped out';
+  };
+  const reasons = ['Stopped out','Dead-trade exit'];
+  const reasonData = reasons.map(r=>{
+    const rows = losses.filter(s=>classifyExit(s)===r && !(outcomeOf(s)||'').toLowerCase().includes('manual close'));
+    const pnlVals = rows.map(s=>parseFloat(s['My P&L (AUD)'])).filter(v=>!isNaN(v));
+    const avgLoss = pnlVals.length ? pnlVals.reduce((a,b)=>a+b,0)/pnlVals.length : null;
+    const holdVals = rows.map(s=>parseFloat(s['Hold Time (Hours)'])).filter(v=>!isNaN(v));
+    const avgHold = holdVals.length ? holdVals.reduce((a,b)=>a+b,0)/holdVals.length : null;
+    const totalPnl = rows.reduce((a,s)=>a+(parseFloat(s['My P&L (AUD)'])||0),0);
+    return { r, n: rows.length, avgLoss, avgHold, totalPnl };
+  });
+
+  const hasData = reasonData.some(x=>x.n>0);
+  if(hasData){
+    charts.override = new Chart(document.getElementById('overrideChart').getContext('2d'), {
+      type:'bar',
+      data:{ labels: reasonData.map(x=>x.r+' (n='+x.n+')'), datasets:[
+        { label:'Avg $ loss', data: reasonData.map(x=>x.avgLoss!==null?Math.abs(x.avgLoss):0), backgroundColor:'#ff5a5f', borderWidth:0, borderRadius:3, yAxisID:'y' },
+        { label:'Avg hold (hrs)', data: reasonData.map(x=>x.avgHold), backgroundColor:'#ffb454', borderWidth:0, borderRadius:3, yAxisID:'y1' }
+      ]},
+      options:{ responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ position:'bottom', labels:{color:chartTextColor(), font:{size:10}, boxWidth:10} },
+          tooltip:{ callbacks:{ afterBody: ctx => {
+            const x = reasonData[ctx[0].dataIndex];
+            return ['Total P&L: $'+x.totalPnl.toFixed(2)];
+          } } } },
+        scales:{
+          x:{ ticks:{color:chartTextColor(), font:{size:10}}, grid:{display:false} },
+          y:{ position:'left', ticks:{color:chartTextColor(), font:{size:10}, callback:v=>'$'+v.toFixed(0)}, grid:{color:chartGridColor()}, title:{display:true,text:'avg $ loss',color:chartTextColor(),font:{size:10}} },
+          y1:{ position:'right', ticks:{color:chartTextColor(), font:{size:10}, callback:v=>v+'h'}, grid:{display:false}, title:{display:true,text:'avg hold (hrs)',color:chartTextColor(),font:{size:10}} }
+        } }
+    });
+  }
+  document.getElementById('overrideNote').innerHTML = hasData
+    ? (() => {
+        const stopped = reasonData.find(x=>x.r==='Stopped out');
+        const dead = reasonData.find(x=>x.r==='Dead-trade exit');
+        if(stopped?.n && dead?.n && stopped.avgLoss!==null && dead.avgLoss!==null){
+          const worse = Math.abs(dead.avgLoss) > Math.abs(stopped.avgLoss);
+          return `<span style="color:var(--text3)">Dead-trade exits average <b style="color:${worse?'#ff5a5f':'#3ddc84'}">$${Math.abs(dead.avgLoss).toFixed(2)}</b> loss over <b>${dead.avgHold?.toFixed(1)}h</b> held, vs stop-outs averaging <b>$${Math.abs(stopped.avgLoss).toFixed(2)}</b> over <b>${stopped.avgHold?.toFixed(1)}h</b>. ${worse ? 'Drift is costing more than a clean stop would — worth checking the dead-trade threshold.' : 'Dead-trade exits are cutting losses smaller than a clean stop — the logic is doing its job.'}</span>`;
+        }
+        return '<span style="color:var(--text3)">Not enough of both categories to compare yet.</span>';
+      })()
+    : '<span style="color:var(--text3)">No stopped-out or dead-trade-exit losses in range (manual closes excluded from this comparison).</span>';
+
+  buildDeadTradeTimeClustering(losses, classifyExit);
+
+  destroyChart('cumPnl');
+  const cumModes = [...new Set(exec.map(s=>s['Mode']).filter(Boolean))];
+  const palette = ['#4f8ef7','#2dd4bf','#a78bfa','#ffb454'];
+  const cumulate = arr => { let c=0; return arr.map((s,i)=>{ c += parseFloat(s['My P&L (AUD)'])||0; return { x:i+1, y:parseFloat(c.toFixed(2)) }; }); };
+  const cumDatasets = cumModes.map((m,i)=>{
+    const rows = exec.filter(s=>s['Mode']===m && (parseFloat(s['My P&L (AUD)'])||0)!==0);
+    return { label: m+' (n='+rows.length+')', data: cumulate(rows), borderColor: palette[i%palette.length], pointRadius:1.5, borderWidth:1.5, fill:false, tension:.2 };
+  });
+  const hasCumData = cumDatasets.some(d=>d.data.length>0);
+  if(hasCumData){
+    charts.cumPnl = new Chart(document.getElementById('cumPnlChart').getContext('2d'), {
+      type:'line',
+      data:{ datasets: cumDatasets },
+      options:{ responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ position:'bottom', labels:{color:chartTextColor(), font:{size:10}, boxWidth:10} } },
+        scales:{
+          x:{ type:'linear', title:{display:true,text:'trade sequence (within mode)',color:chartTextColor(),font:{size:10}}, ticks:{color:chartTextColor(), font:{size:9}, stepSize:1}, grid:{display:false} },
+          y:{ ticks:{color:chartTextColor(), font:{size:10}, callback:v=>'$'+v.toFixed(0)}, grid:{color:chartGridColor()} }
+        } }
+    });
+  } else {
+    destroyChart('cumPnl');
+    const ctx = document.getElementById('cumPnlChart').getContext('2d');
+    ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);
+  }
+
+  destroyChart('rMult');
+  const rVals = exec.filter(s=>s['Peak R'] && parseFloat(s['Peak R'])>0).map(s=>parseFloat(s['Peak R']));
+  const bins = [0,0.5,1,1.5,2,2.5,3,4,5,10];
+  const counts = bins.slice(0,-1).map((_,i)=>rVals.filter(r=>r>=bins[i] && r<bins[i+1]).length);
+  charts.rMult = new Chart(document.getElementById('rMultChart').getContext('2d'), {
+    type:'bar',
+    data:{ labels: bins.slice(0,-1).map((b,i)=>b+'–'+bins[i+1]+'R'), datasets:[{ data: counts, backgroundColor:'#4f8ef7', borderWidth:0, borderRadius:3 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+      scales: baseScales({ x:{ ticks:{color:chartTextColor(), font:{size:9}}, grid:{display:false} },
+                            y:{ ticks:{color:chartTextColor(), font:{size:10}}, grid:{color:chartGridColor()} } }) }
+  });
+
+  const v2sigs = exec.filter(s=>s['Config Version']==='mom-v2');
+  const v2dec = v2sigs.filter(s=>isDecided(s['System Outcome']||''));
+  const v2w = v2dec.filter(s=>isWin(s['System Outcome']||''));
+  const v2modes = [...new Set(v2sigs.map(s=>s['Mode']||'').filter(Boolean))];
+  const v2html = v2modes.map(m=>{
+    const md = v2dec.filter(s=>s['Mode']===m);
+    const mw = v2w.filter(s=>s['Mode']===m);
+    const wr = md.length ? Math.round(mw.length/md.length*100)+'%' : '—';
+    const pnl = v2sigs.filter(s=>s['Mode']===m).reduce((a,s)=>a+(parseFloat(s['My P&L (AUD)'])||0),0);
+    return `<div style="display:inline-block;margin:4px 18px 4px 0"><b>${m}</b>&nbsp; WR: <b style="color:${md.length&&mw.length/md.length>=0.5?'#3ddc84':'#ff5a5f'}">${wr}</b> &nbsp; P&amp;L: <b style="color:${pnl>=0?'#3ddc84':'#ff5a5f'}">$${pnl.toFixed(2)}</b> &nbsp; n=${md.length}</div>`;
+  }).join('');
+  document.getElementById('v2Stats').innerHTML = v2html || '<span style="color:var(--text3)">No mom-v2 data yet</span>';
+
+  buildSessionModeHeatmap(exec);
+  buildFSummary();
+  buildVerdictTierComparison();
+  buildMissedOpportunity();
+}
+
+function fIndicatorStats(){
+  const v2 = filterSignalsByRange(SIGS.filter(s=>s['Config Version']==='mom-v2'));
+  const decided = v2.filter(s=>isDecided(s['System Outcome']||s['My Outcome']||''));
+  const stats = {};
+  F_KEYS.forEach(fk=>{
+    const byValue = {};
+    decided.forEach(s=>{
+      const fv = fValuesFor(s);
+      if(!(fk in fv)) return;
+      const val = fv[fk];
+      if(!byValue[val]) byValue[val] = {win:0, total:0};
+      byValue[val].total++;
+      if(isWin(s['System Outcome']||s['My Outcome']||'')) byValue[val].win++;
+    });
+    stats[fk] = byValue;
+  });
+  return stats;
+}
+
+function wrColor(wr){
+  if(wr>=60) return { bg:'#143d28', fg:'#3ddc84' };
+  if(wr>=50) return { bg:'#2a3318', fg:'#a8d65c' };
+  if(wr>=40) return { bg:'#3a2e15', fg:'#ffb454' };
+  return { bg:'#3a1a1a', fg:'#ff5a5f' };
+}
+
+function resolveExitTime(s){
+  if(s['System Result Date']){
+    const d = parseAnyDate(s['System Result Date'], s['System Result Time']);
+    if(d) return d;
+  }
+  const signalTime = parseAnyDate(s['Date'], s['Time']);
+  const holdHours = parseFloat(s['Hold Time (Hours)']);
+  if(signalTime && !isNaN(holdHours)){
+    return new Date(signalTime.getTime() + holdHours*3600*1000);
+  }
+  return signalTime;
+}
+
+function buildDeadTradeTimeClustering(losses, classifyExit){
+  destroyChart('deadTradeTime');
+  const withExitHour = losses.map(s=>{
+    const exitTime = resolveExitTime(s);
+    if(!exitTime) return null;
+    return { hour: exitTime.getHours(), reason: classifyExit(s) };
+  }).filter(Boolean);
+
+  const deadRows = withExitHour.filter(x=>x.reason==='Dead-trade exit');
+  const stopRows = withExitHour.filter(x=>x.reason==='Stopped out');
+
+  if(!deadRows.length){
+    const totalLosses = losses.length;
+    const hasDeadLabel = losses.some(s=>(outcomeOf(s)||'').toLowerCase().includes('dead trade'));
+    let msg;
+    if(totalLosses===0){
+      msg = 'No losing trades in range yet.';
+    } else if(!hasDeadLabel){
+      msg = `No trades in range are labelled as a dead-trade exit (checked ${totalLosses} loss${totalLosses===1?'':'es'}). Either the dead-trade exit logic hasn\'t fired yet, or your outcome labels use different wording than "Dead Trade".`;
+    } else {
+      msg = 'Dead-trade exits exist but none have a usable exit timestamp (checked System Result Date/Time, then Date+Hold Time as fallback).';
+    }
+    document.getElementById('deadTradeTimeNote').innerHTML = `<span style="color:var(--text3)">${msg}</span>`;
+    const ctx = document.getElementById('deadTradeTimeChart').getContext('2d');
+    ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);
+    return;
+  }
+
+  const hours = Array.from({length:24}, (_,i)=>i);
+  const deadCounts = hours.map(h => deadRows.filter(x=>x.hour===h).length);
+  const stopCounts = hours.map(h => stopRows.filter(x=>x.hour===h).length);
+
+  charts.deadTradeTime = new Chart(document.getElementById('deadTradeTimeChart').getContext('2d'), {
+    type:'bar',
+    data:{ labels: hours.map(h=>String(h).padStart(2,'0')+':00'), datasets:[
+      { label:'Dead-trade exit', data: deadCounts, backgroundColor:'#ffb454', borderWidth:0, borderRadius:2 },
+      { label:'Stopped out', data: stopCounts, backgroundColor:'#3a4150', borderWidth:0, borderRadius:2 }
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ position:'bottom', labels:{color:chartTextColor(), font:{size:10}, boxWidth:10} } },
+      scales: baseScales({ x:{ title:{display:true,text:'exit hour (AEST)',color:chartTextColor(),font:{size:10}}, ticks:{color:chartTextColor(), font:{size:9}}, grid:{display:false} },
+                            y:{ ticks:{color:chartTextColor(), font:{size:10}, stepSize:1}, grid:{color:chartGridColor()} } }) }
+  });
+
+  const maxDead = Math.max(...deadCounts);
+  const peakHours = hours.filter(h=>deadCounts[h]===maxDead && maxDead>0);
+  const totalDead = deadRows.length;
+  const peakShare = maxDead/totalDead*100;
+
+  let note;
+  if(totalDead<5){
+    note = `Only ${totalDead} dead-trade exit(s) in range — too few to see a real time-of-day pattern yet.`;
+  } else if(peakHours.length<=2 && peakShare>=30){
+    const peakLabel = peakHours.map(h=>String(h).padStart(2,'0')+':00').join(' / ');
+    note = `Dead-trade exits cluster around <b>${peakLabel} AEST</b> — ${maxDead} of ${totalDead} (${peakShare.toFixed(0)}%) happen in that window. Worth checking whether that's a session changeover or low-liquidity gap rather than treating dead trades as random drift.`;
+  } else {
+    note = `Dead-trade exits (n=${totalDead}) are fairly spread across the day rather than clustering at specific hours — doesn't look like a liquidity-gap-at-a-specific-time problem.`;
+  }
+  document.getElementById('deadTradeTimeNote').innerHTML = `<span style="color:var(--text3)">${note}</span>`;
+}
+
+function buildSessionModeHeatmap(exec){
+  const cleanSession = s => (s['Session']||'').replace(/[^\w\s\/]/g,'').trim();
+  const sessions = [...new Set(exec.map(cleanSession).filter(Boolean))];
+  const modes = [...new Set(exec.map(s=>s['Mode']).filter(Boolean))];
+  const decided = exec.filter(s=>isDecided(outcomeOf(s)));
+
+  if(!sessions.length || !modes.length){
+    document.getElementById('sessionModeHeatmap').innerHTML = '<span style="color:var(--text3);font-size:13px">Not enough data yet</span>';
+    document.getElementById('sessionModeNote').innerHTML = '';
+    return;
+  }
+
+  const cellStats = {};
+  sessions.forEach(sess=>{
+    modes.forEach(mode=>{
+      const rows = decided.filter(s=>cleanSession(s)===sess && s['Mode']===mode);
+      const wins = rows.filter(s=>isWin(outcomeOf(s)));
+      cellStats[sess+'|'+mode] = { n: rows.length, wr: rows.length ? wins.length/rows.length*100 : null };
+    });
+  });
+
+  const overallByMode = {};
+  modes.forEach(mode=>{
+    const rows = decided.filter(s=>s['Mode']===mode);
+    const wins = rows.filter(s=>isWin(outcomeOf(s)));
+    overallByMode[mode] = rows.length ? wins.length/rows.length*100 : null;
+  });
+
+  let html = '<table class="heatmap"><thead><tr><th class="rowhead">Session \\ Mode</th>';
+  modes.forEach(m=> html += `<th>${m}</th>`);
+  html += '</tr></thead><tbody>';
+  sessions.forEach(sess=>{
+    html += `<tr><th class="rowhead">${sess}</th>`;
+    modes.forEach(mode=>{
+      const stat = cellStats[sess+'|'+mode];
+      if(!stat || stat.n===0){
+        html += `<td><div class="hm-cell hm-empty">n/a</div></td>`;
+      } else {
+        const c = wrColor(stat.wr);
+        const lowN = stat.n<5;
+        html += `<td><div class="hm-cell" style="background:${c.bg};opacity:${lowN?0.6:1}" title="${sess} × ${mode}: ${stat.wr.toFixed(0)}% WR, n=${stat.n}">
+          <span class="hm-wr" style="color:${c.fg}">${stat.wr.toFixed(0)}%</span>
+          <span class="hm-n">n=${stat.n}</span>
+        </div></td>`;
+      }
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById('sessionModeHeatmap').innerHTML = html;
+
+  const cellsArr = [];
+  sessions.forEach(sess=>modes.forEach(mode=>{
+    const stat = cellStats[sess+'|'+mode];
+    if(stat && stat.n>=5) cellsArr.push({ sess, mode, wr:stat.wr, n:stat.n });
+  }));
+
+  let note = '';
+  if(cellsArr.length>=2){
+    const bySession = {};
+    sessions.forEach(sess=>{
+      const cells = cellsArr.filter(c=>c.sess===sess);
+      if(cells.length) bySession[sess] = cells.reduce((a,c)=>a+c.wr,0)/cells.length;
+    });
+    const worstSession = Object.entries(bySession).sort((a,b)=>a[1]-b[1])[0];
+    if(worstSession){
+      const [sessName, sessAvg] = worstSession;
+      const cellsInSession = cellsArr.filter(c=>c.sess===sessName);
+      const spread = cellsInSession.length>1 ? Math.max(...cellsInSession.map(c=>c.wr)) - Math.min(...cellsInSession.map(c=>c.wr)) : 0;
+      if(cellsInSession.length>1 && spread>20){
+        const best = cellsInSession.reduce((a,b)=>b.wr>a.wr?b:a);
+        const worst = cellsInSession.reduce((a,b)=>b.wr<a.wr?b:a);
+        note = `<b>${sessName}</b> isn't uniformly weak — ${worst.mode} sits at ${worst.wr.toFixed(0)}% there (n=${worst.n}) while ${best.mode} holds ${best.wr.toFixed(0)}% (n=${best.n}) in the same session. The drag looks mode-specific, not session-wide — worth restricting ${worst.mode} in ${sessName} rather than suppressing the whole session.`;
+      } else {
+        note = `<b>${sessName}</b> is weak at roughly ${sessAvg.toFixed(0)}% across the modes with enough data, fairly evenly. The drag looks session-wide rather than tied to one mode.`;
+      }
+    }
+  } else {
+    note = 'Not enough session/mode combinations with 5+ decided trades yet for a reliable read — cells below 5 trades are shown faded.';
+  }
+  document.getElementById('sessionModeNote').innerHTML = `<span style="color:var(--text3)">${note}</span>`;
+}
+
+function buildFSummary(){
+  const stats = fIndicatorStats();
+  const v2 = SIGS.filter(s=>s['Config Version']==='mom-v2');
+  const allDecided = v2.filter(s=>isDecided(s['System Outcome']||s['My Outcome']||''));
+  const allWins = allDecided.filter(s=>isWin(s['System Outcome']||s['My Outcome']||''));
+  const baselineWR = allDecided.length ? allWins.length/allDecided.length*100 : 0;
+
+  const rows = F_KEYS.map(fk=>{
+    const byValue = stats[fk];
+    const vals = Object.keys(byValue).map(Number).sort((a,b)=>a-b);
+    if(!vals.length) return null;
+    const wrs = vals.map(v=>({ v, wr: byValue[v].total ? byValue[v].win/byValue[v].total*100 : 0, n: byValue[v].total }));
+    const best = wrs.reduce((a,b)=> b.wr>a.wr ? b : a);
+    const worst = wrs.reduce((a,b)=> b.wr<a.wr ? b : a);
+    const lift = best.wr - baselineWR;
+    return { fk, label: F_LABELS[fk], best, worst, lift, n: wrs.reduce((a,w)=>a+w.n,0) };
+  }).filter(Boolean).sort((a,b)=>b.lift-a.lift);
+
+  document.getElementById('fSummary').innerHTML = (rows.length ? `<div style="font-size:11.5px;color:var(--text3);margin-bottom:8px">Baseline mom-v2 win rate: ${baselineWR.toFixed(0)}% (n=${allDecided.length}). Ranked by how much each indicator's best value lifts win rate above that baseline.</div>` : '') + rows.map(r=>{
+    const color = r.lift>=15 ? '#3ddc84' : r.lift>=5 ? '#ffb454' : '#6b7280';
+    return `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
+      <span><b>${r.fk}</b> <span style="color:var(--text3)">${r.label}</span></span>
+      <span>best ${r.fk}:${r.best.v} → <b style="color:#3ddc84">${r.best.wr.toFixed(0)}%</b> &nbsp; worst ${r.fk}:${r.worst.v} → <b style="color:#ff5a5f">${r.worst.wr.toFixed(0)}%</b> &nbsp; lift vs baseline <b style="color:${color}">${r.lift>=0?'+':''}${r.lift.toFixed(0)}pp</b> <span style="color:var(--text3)">(n=${r.n})</span></span>
+    </div>`;
+  }).join('') || '<span style="color:var(--text3)">Not enough decided mom-v2 trades yet</span>';
+}
+
+function buildVerdictTierComparison(){
+  destroyChart('verdictTier');
+  const exec = filterSignalsByRange(SIGS.filter(s=>s['Auto Trade']==='Traded'));
+  const tiers = ['VALID','VALID-L','WATCHLIST'];
+  const tierStats = tiers.map(t=>{
+    const rows = exec.filter(s=>s['Verdict']===t && isDecided(outcomeOf(s)));
+    const wins = rows.filter(s=>isWin(outcomeOf(s)));
+    return { t, n: rows.length, wr: rows.length ? wins.length/rows.length*100 : null };
+  });
+
+  const withData = tierStats.filter(x=>x.wr!==null);
+  if(withData.length>=2){
+    const sorted = [...withData].sort((a,b)=>b.wr-a.wr);
+    const expectedOrder = tiers.filter(t=>withData.some(x=>x.t===t));
+    const actualOrder = sorted.map(x=>x.t);
+    const matchesExpected = JSON.stringify(actualOrder)===JSON.stringify(expectedOrder);
+    document.getElementById('verdictTierNote').innerHTML = matchesExpected
+      ? `<span style="color:#3ddc84">Tiers are ordered as expected</span> — ${sorted.map(x=>x.t+': '+x.wr.toFixed(0)+'%').join(' > ')}.`
+      : `<span style="color:#ffb454">${sorted[0].t} (${sorted[0].wr.toFixed(0)}%) is currently outperforming a tier that should rank higher</span> — worth reviewing threshold calibration. Actual order: ${sorted.map(x=>x.t+' '+x.wr.toFixed(0)+'%').join(' > ')}.`;
+  } else {
+    document.getElementById('verdictTierNote').innerHTML = '<span style="color:var(--text3)">Not enough decided trades across tiers yet to compare.</span>';
+  }
+
+  charts.verdictTier = new Chart(document.getElementById('verdictTierChart').getContext('2d'), {
+    type:'bar',
+    data:{ labels: tierStats.map(x=>x.t+(x.n?' (n='+x.n+')':'')), datasets:[{ data: tierStats.map(x=>x.wr), backgroundColor: tierStats.map(x=>x.wr===null?'#3a4150':x.wr>=50?'#3ddc84':'#ff5a5f'), borderWidth:0, borderRadius:3 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+      scales: baseScales({ x:{ ticks:{color:chartTextColor(), font:{size:10}}, grid:{display:false} },
+                            y:{ max:100, ticks:{color:chartTextColor(), font:{size:10}, callback:v=>v+'%'}, grid:{color:chartGridColor()} } }) }
+  });
+}
+
+function buildMissedOpportunity(){
+  destroyChart('missedPair'); destroyChart('missedScore'); destroyChart('missedReason');
+  const missed = filterSignalsByRange(SIGS.filter(s=>{
+    const ot = s['Auto Trade']||'';
+    return (s['Verdict']==='WATCHLIST' || ot==='Limit Expired' || ot==='Never Filled') && (s['Missed (AUD)']||s['Missed Pips']);
+  }));
+  const totalMissedAud = missed.reduce((a,s)=>a+(parseFloat(s['Missed (AUD)'])||0),0);
+  const wouldWin = missed.filter(s=>(parseFloat(s['Missed (AUD)'])||0)>0).length;
+  const wouldLose = missed.filter(s=>(parseFloat(s['Missed (AUD)'])||0)<0).length;
+  document.getElementById('missedStats').innerHTML = missed.length ? `
+    <div style="display:flex;justify-content:space-between;padding:4px 0"><span>Untaken signals tracked</span><b>${missed.length}</b></div>
+    <div style="display:flex;justify-content:space-between;padding:4px 0"><span>Net missed P&amp;L</span><b style="color:${totalMissedAud>=0?'#3ddc84':'#ff5a5f'}">${totalMissedAud>=0?'+':''}$${totalMissedAud.toFixed(2)}</b></div>
+    <div style="display:flex;justify-content:space-between;padding:4px 0"><span>Would have won / lost</span><b>${wouldWin} / ${wouldLose}</b></div>
+    <div style="margin-top:8px;font-size:12px;color:var(--text3)">${totalMissedAud>0 ? 'Thresholds may be filtering out net-positive setups — worth reviewing the WATCHLIST gate.' : 'Untraded signals would have lost money on net — current filtering looks appropriately conservative.'}</div>
+  ` : '<span style="color:var(--text3)">No missed-opportunity data found in this dataset</span>';
+
+  if(!missed.length) return;
+
+  const pairs = [...new Set(missed.map(s=>s['Pair']))].filter(Boolean);
+  const pairMissed = pairs.map(p=>missed.filter(s=>s['Pair']===p).reduce((a,s)=>a+(parseFloat(s['Missed (AUD)'])||0),0));
+  const sortedPairs = pairs.map((p,i)=>({p,v:pairMissed[i]})).sort((a,b)=>b.v-a.v);
+  charts.missedPair = new Chart(document.getElementById('missedPairChart').getContext('2d'), {
+    type:'bar',
+    data:{ labels: sortedPairs.map(x=>x.p), datasets:[{ data: sortedPairs.map(x=>x.v), backgroundColor: sortedPairs.map(x=>x.v>=0?'#3ddc84':'#ff5a5f'), borderWidth:0, borderRadius:3 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+      scales: baseScales({ x:{ ticks:{color:chartTextColor(), font:{size:9}, maxRotation:45}, grid:{display:false} },
+                            y:{ ticks:{color:chartTextColor(), font:{size:10}, callback:v=>'$'+v.toFixed(0)}, grid:{color:chartGridColor()} } }) }
+  });
+
+  const scores = [...new Set(missed.map(s=>parseInt(s['Score'])).filter(n=>!isNaN(n)))].sort((a,b)=>a-b);
+  const scoreMissed = scores.map(sc=>missed.filter(s=>parseInt(s['Score'])===sc).reduce((a,s)=>a+(parseFloat(s['Missed (AUD)'])||0),0));
+  charts.missedScore = new Chart(document.getElementById('missedScoreChart').getContext('2d'), {
+    type:'bar',
+    data:{ labels: scores.map(s=>'Score '+s), datasets:[{ data: scoreMissed, backgroundColor: scoreMissed.map(v=>v>=0?'#3ddc84':'#ff5a5f'), borderWidth:0, borderRadius:3 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+      scales: baseScales({ x:{ ticks:{color:chartTextColor(), font:{size:10}}, grid:{display:false} },
+                            y:{ ticks:{color:chartTextColor(), font:{size:10}, callback:v=>'$'+v.toFixed(0)}, grid:{color:chartGridColor()} } }) }
+  });
+
+  const reasonOf = s => s['Verdict']==='WATCHLIST' ? 'Watchlist (not taken)' : s['Auto Trade']==='Limit Expired' ? 'Limit expired' : 'Never filled';
+  const reasons = [...new Set(missed.map(reasonOf))];
+  const reasonWin = reasons.map(r=>missed.filter(s=>reasonOf(s)===r && (parseFloat(s['Missed (AUD)'])||0)>0).length);
+  const reasonLoss = reasons.map(r=>missed.filter(s=>reasonOf(s)===r && (parseFloat(s['Missed (AUD)'])||0)<0).length);
+  charts.missedReason = new Chart(document.getElementById('missedReasonChart').getContext('2d'), {
+    type:'bar',
+    data:{ labels: reasons, datasets:[
+      { label:'Would win', data: reasonWin, backgroundColor:'#3ddc84', borderWidth:0, borderRadius:3 },
+      { label:'Would lose', data: reasonLoss, backgroundColor:'#ff5a5f', borderWidth:0, borderRadius:3 }
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ position:'bottom', labels:{color:chartTextColor(), font:{size:10}, boxWidth:10} } },
+      scales: baseScales({ x:{ stacked:true, ticks:{color:chartTextColor(), font:{size:10}}, grid:{display:false} },
+                            y:{ stacked:true, ticks:{color:chartTextColor(), font:{size:10}}, grid:{color:chartGridColor()} } }) }
+  });
+}
+
+function buildFIndicators(){
+  const hasData = SIGS.length>0;
+  document.getElementById('findicatorsEmpty').style.display = hasData ? 'none' : 'block';
+  document.getElementById('findicatorsContent').style.display = hasData ? 'block' : 'none';
+  if(!hasData) return;
+
+  const stats = fIndicatorStats();
+  const v2 = filterSignalsByRange(SIGS.filter(s=>s['Config Version']==='mom-v2'));
+  const allDecided = v2.filter(s=>isDecided(s['System Outcome']||s['My Outcome']||''));
+  const allWins = allDecided.filter(s=>isWin(s['System Outcome']||s['My Outcome']||''));
+  const baselineWR = allDecided.length ? allWins.length/allDecided.length*100 : 0;
+
+  const ranked = F_KEYS.map(fk=>{
+    const byValue = stats[fk];
+    const vals = Object.keys(byValue).map(Number).sort((a,b)=>a-b);
+    if(!vals.length) return null;
+    const wrs = vals.map(v=>({ v, wr: byValue[v].total ? byValue[v].win/byValue[v].total*100 : 0, n: byValue[v].total }));
+    const totalN = wrs.reduce((a,w)=>a+w.n,0);
+    const best = wrs.reduce((a,b)=> b.wr>a.wr ? b : a);
+    const worst = wrs.reduce((a,b)=> b.wr<a.wr ? b : a);
+    const liftOverBaseline = best.wr - baselineWR;
+    const confidenceWeight = Math.min(1, totalN/15);
+    return { fk, label: F_LABELS[fk], wrs, best, worst, totalN, liftOverBaseline, weighted: liftOverBaseline*confidenceWeight };
+  }).filter(Boolean).sort((a,b)=>b.weighted-a.weighted);
+
+  destroyChart('fRank');
+  charts.fRank = new Chart(document.getElementById('fRankChart').getContext('2d'), {
+    type:'bar',
+    data:{ labels: ranked.map(r=>r.fk+' (best: '+r.fk+':'+r.best.v+')'), datasets:[
+      { label:'Win rate at best value', data: ranked.map(r=>r.best.wr.toFixed(1)), backgroundColor: ranked.map(r=>r.liftOverBaseline>0?'#3ddc84':'#6b7280'), borderWidth:0, borderRadius:4 }
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false, indexAxis:'y',
+      plugins:{ legend:{display:false},
+        tooltip:{ callbacks:{
+          title: ctx => ranked[ctx[0].dataIndex].fk + ' — ' + ranked[ctx[0].dataIndex].label,
+          label: ctx => {
+            const r = ranked[ctx.dataIndex];
+            return [`Best value ${r.fk}:${r.best.v} → ${r.best.wr.toFixed(0)}% WR (n=${r.best.n})`,
+                    `Baseline (all mom-v2): ${baselineWR.toFixed(0)}% WR`,
+                    `Lift: ${r.liftOverBaseline>=0?'+':''}${r.liftOverBaseline.toFixed(0)}pp`];
+          }
+        } } },
+      scales: baseScales({ x:{ max:100, ticks:{color:chartTextColor(), font:{size:10}, callback:v=>v+'%'}, grid:{color:chartGridColor()} },
+                            y:{ ticks:{color:chartTextColor(), font:{size:10}}, grid:{display:false} } }) }
+  });
+
+  document.getElementById('fRankNote').innerHTML = `Dashed line marks the overall mom-v2 win rate baseline (<b>${baselineWR.toFixed(0)}%</b>, n=${allDecided.length}). Bars show win rate when each indicator sits at its single best-performing value — green means that value beats the baseline. This is a starting signal, not the full picture: check the per-value bars below, since a 2-trade sample can look great by chance.`;
+
+  const grid = document.getElementById('fIndicatorGrid');
+  grid.innerHTML = ranked.map(r=>{
+    const rows = r.wrs.map(w=>{
+      const barColor = w.wr>=60?'#3ddc84':w.wr>=45?'#ffb454':'#ff5a5f';
+      const lowN = w.n<8;
+      return `<div style="display:flex;align-items:center;gap:8px;margin:5px 0">
+        <span style="width:36px;font-size:11px;color:var(--text3)">${r.fk}:${w.v}</span>
+        <div style="flex:1;background:var(--bg3);border-radius:4px;height:14px;overflow:hidden;position:relative">
+          <div style="width:${w.wr}%;background:${barColor};height:100%;opacity:${lowN?0.55:1}"></div>
+        </div>
+        <span style="width:70px;font-size:11px;text-align:right">${w.wr.toFixed(0)}% <span style="color:var(--text3)">(n=${w.n})</span></span>
+      </div>`;
+    }).join('');
+    return `<div class="card">
+      <h3>${r.fk} <span class="hint">${r.label}</span></h3>
+      ${rows}
+      <div style="margin-top:8px;font-size:11.5px;color:var(--text3)">${r.totalN} decided trades · baseline ${baselineWR.toFixed(0)}% · faded bars = under 8 samples, read with caution</div>
+    </div>`;
+  }).join('');
+
+  buildFIndicatorTrends();
+}
+
+function buildFIndicatorTrends(){
+  const grid = document.getElementById('fTrendGrid');
+  const v2 = SIGS.filter(s=>s['Config Version']==='mom-v2' && isDecided(s['My Outcome']||s['System Outcome']||''));
+
+  const indicatorsWithData = F_KEYS.map(fk=>{
+    const rows = v2.map(s=>{
+      const fv = fValuesFor(s);
+      if(!(fk in fv)) return null;
+      return { val: fv[fk], win: isWin(s['My Outcome']||s['System Outcome']||'') ? 1 : 0 };
+    }).filter(Boolean);
+    if(!rows.length) return null;
+    const values = [...new Set(rows.map(r=>r.val))].sort((a,b)=>a-b);
+    if(values.length<2) return null;
+    return { fk, rows, best: values[values.length-1], worst: values[0] };
+  }).filter(Boolean);
+
+  if(!indicatorsWithData.length){
+    grid.innerHTML = '<span style="color:var(--text3);font-size:13px">No F-indicator data with at least two distinct values yet.</span>';
+    return;
+  }
+
+  grid.innerHTML = indicatorsWithData.map(ind=>`
+    <div class="card" style="margin-bottom:0">
+      <h3 style="font-size:11.5px">${ind.fk} <span class="hint">${F_LABELS[ind.fk]||''} — best (${ind.fk}:${ind.best}) vs worst (${ind.fk}:${ind.worst})</span></h3>
+      <div style="position:relative;height:180px"><canvas id="fTrendChart_${ind.fk}"></canvas></div>
+    </div>
+  `).join('');
+
+  const windowSize = 10;
+  const rollWR = (arr) => arr.map((_,i)=>{
+    const slice = arr.slice(Math.max(0,i-windowSize+1), i+1);
+    return slice.length ? slice.reduce((a,b)=>a+b.win,0)/slice.length*100 : null;
+  });
+
+  indicatorsWithData.forEach(ind=>{
+    destroyChart('fTrend_'+ind.fk);
+    const bestRows = ind.rows.filter(r=>r.val===ind.best);
+    const worstRows = ind.rows.filter(r=>r.val===ind.worst);
+    const rollBest = rollWR(bestRows);
+    const rollWorst = rollWR(worstRows);
+    const canvas = document.getElementById('fTrendChart_'+ind.fk);
+    if(!canvas) return;
+    charts['fTrend_'+ind.fk] = new Chart(canvas.getContext('2d'), {
+      type:'line',
+      data:{ labels: Array.from({length: Math.max(rollBest.length, rollWorst.length)}, (_,i)=>i+1),
+        datasets:[
+          { label:ind.fk+':'+ind.best+' (rolling WR)', data: rollBest, borderColor:'#3ddc84', pointRadius:0, pointHoverRadius:5, pointHitRadius:8, pointBackgroundColor:'#3ddc84', pointBorderColor:'#0b0d10', pointBorderWidth:1.5, borderWidth:1.8, tension:.25 },
+          { label:ind.fk+':'+ind.worst+' (rolling WR)', data: rollWorst, borderColor:'#ff5a5f', pointRadius:0, pointHoverRadius:5, pointHitRadius:8, pointBackgroundColor:'#ff5a5f', pointBorderColor:'#0b0d10', pointBorderWidth:1.5, borderWidth:1.8, tension:.25 }
+        ] },
+      options:{ responsive:true, maintainAspectRatio:false, interaction:{ mode:'nearest', intersect:false },
+        plugins:{ legend:{ position:'bottom', labels:{color:chartTextColor(), font:{size:9}, boxWidth:8} },
+          tooltip:{ backgroundColor:'#1c2128', borderColor:'#3a4150', borderWidth:1, titleColor:'#e8eaed', bodyColor:'#e8eaed', padding:10, displayColors:true,
+            callbacks:{
+              title: ctx => 'Trade #' + ctx[0].label + ' in sequence',
+              label: ctx => {
+                const isBest = ctx.datasetIndex===0;
+                const rows = isBest ? bestRows : worstRows;
+                const val = isBest ? ind.best : ind.worst;
+                const idx = ctx.dataIndex;
+                const windowStart = Math.max(0, idx-windowSize+1);
+                const windowRows = rows.slice(windowStart, idx+1);
+                const winsInWindow = windowRows.reduce((a,r)=>a+r.win,0);
+                return `${ind.fk}:${val} — ${ctx.parsed.y!==null?ctx.parsed.y.toFixed(1):'—'}% WR (${winsInWindow}/${windowRows.length} in trailing window)`;
+              }
+            } } },
+        scales: baseScales({ x:{ ticks:{color:chartTextColor(), font:{size:8}, maxTicksLimit:8}, grid:{display:false} },
+                              y:{ max:100, ticks:{color:chartTextColor(), font:{size:9}, callback:v=>v+'%'}, grid:{color:chartGridColor()} } }) }
+    });
+  });
+}
+
+function groupLiveByPosition(){
+  const groups = {};
+  LIVE.forEach(row=>{
+    const key = row['OANDA ID'] || row['Signal ID'];
+    if(!key) return;
+    if(!groups[key]) groups[key] = [];
+    groups[key].push(row);
+  });
+  Object.values(groups).forEach(rows=>{
+    rows.sort((a,b)=>{
+      const da = parseInt(a['Minutes Since Fill'])||0;
+      const db = parseInt(b['Minutes Since Fill'])||0;
+      return da-db;
+    });
+  });
+  return groups;
+}
+
+function findMatchingSignal(liveRow){
+  const sigId = liveRow['Signal ID'];
+  const oandaId = liveRow['OANDA ID'];
+  let match = SIGS.find(s => s['Signal ID'] === sigId);
+  if(!match && oandaId) match = SIGS.find(s => s['OANDA ID'] === oandaId);
+  return match || null;
+}
+
+function dollarsPerRForPair(pair){
+  const closed = SIGS.filter(s => s['Pair']===pair && isDecided(outcomeOf(s)));
+  const ratios = closed.map(s=>{
+    const pnl = parseFloat(s['My P&L (AUD)']);
+    const r = parseFloat(s['Peak R']);
+    if(isNaN(pnl) || isNaN(r) || r===0) return null;
+    return Math.abs(pnl/r);
+  }).filter(v=>v!==null);
+  if(!ratios.length) return null;
+  ratios.sort((a,b)=>a-b);
+  return ratios[Math.floor(ratios.length/2)];
+}
+
+function renderPositionTableRows(positions, opts){
+  return positions.map(p=>{
+    const l = p.latest;
+    const r = parseFloat(l['Current R'])||0;
+    const rClass = r>0?'up':r<0?'down':'neutral';
+    const trend = (l['1H Trend vs Direction']||'').toLowerCase();
+    const trendColor = trend==='aligned'?'#3ddc84':trend==='opposed'?'#ff5a5f':'#ffb454';
+    const heldMin = parseInt(l['Minutes Since Fill'])||0;
+    const heldStr = heldMin>=60 ? (heldMin/60).toFixed(1)+'h' : heldMin+'m';
+    const statusCell = opts.statusBadge(p);
+    const dollarCell = opts.dollarCell ? opts.dollarCell(p, r) : '—';
+    return `<tr>
+      <td><b>${l['Pair']||''}</b></td>
+      <td><span style="${l['Direction']==='Long'?'color:#3ddc84':'color:#ff5a5f'}">${l['Direction']||''}</span></td>
+      <td style="font-size:11px">${l['OANDA ID']||''}</td>
+      <td>${statusCell}</td>
+      <td class="${rClass}">${r.toFixed(2)}R</td>
+      <td>${(parseFloat(l['Peak R'])||0).toFixed(2)}R</td>
+      <td>${dollarCell}</td>
+      <td>${heldStr}</td>
+      <td>${l['Distance To Stop (pips)']||'—'}</td>
+      <td><span class="badge" style="background:transparent;color:${trendColor};border:1px solid ${trendColor}">${l['1H Trend vs Direction']||'—'}</span></td>
+      <td>${l['Spread']||'—'}</td>
+      <td>${tradingViewLinkHtml(l['Pair'], { interval:'15', label:'Chart' })}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderTrendGridFor(positions, mapKeyPrefix){
+  window._trendPositionMap = window._trendPositionMap || {};
+  return positions.map(p=>{
+    const mapKey = mapKeyPrefix + p.id;
+    window._trendPositionMap[mapKey] = p.rows;
+    const sequence = p.rows.map((row,i)=>{
+      const t = (row['1H Trend vs Direction']||'').toLowerCase();
+      const color = t==='aligned'?'#3ddc84':t==='opposed'?'#ff5a5f':t==='mixed'?'#ffb454':'#3a4150';
+      return `<span class="trend-block" style="background:${color}" onmouseenter="showTrendPopup(event, '${mapKey}', ${i})" onmouseleave="hideTrendPopup()" onclick="showTrendPopup(event, '${mapKey}', ${i}); event.stopPropagation();"></span>`;
+    }).join('');
+    const latestTrend = (p.latest['1H Trend vs Direction']||'').toLowerCase();
+    const flipped = p.rows.length>3 && (p.rows[0]['1H Trend vs Direction']||'').toLowerCase()==='aligned' && latestTrend==='opposed';
+    return `<div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:12.5px">
+        <span><b>${p.latest['Pair']}</b> <span style="color:var(--text3)">${p.latest['Direction']}</span></span>
+        ${flipped ? '<span style="color:#ff5a5f;font-size:11px">⚠ trend flipped against position</span>' : ''}
+      </div>
+      <div style="white-space:nowrap;overflow-x:auto;padding:2px 0">${sequence}</div>
+    </div>`;
+  }).join('') || '<span style="color:var(--text3);font-size:13px">No positions to chart</span>';
+}
+
+function buildLiveTracker(){
+  const groups = groupLiveByPosition();
+
+  const allPositions = Object.entries(groups).map(([id, rows])=>{
+    const latest = rows[rows.length-1];
+    const matchedSignal = findMatchingSignal(latest);
+    const sigOutcome = matchedSignal ? (matchedSignal['My Outcome'] || matchedSignal['System Outcome'] || '') : '';
+    return { id, rows, latest, matchedSignal, sigOutcome, isPending: sigOutcome === 'Pending' || sigOutcome === '' };
+  });
+
+  const positions = allPositions.filter(p => p.isPending);
+  const closedPositions = allPositions.filter(p => p.matchedSignal && !p.isPending);
+  const unmatchedCount = allPositions.filter(p=>!p.matchedSignal).length;
+
+  document.getElementById('liveMatchNote').innerHTML = `
+    ${unmatchedCount ? `<span style="color:var(--text3)">${unmatchedCount} live row(s) have no matching signal log entry (checked by Signal ID, then OANDA ID) — treated as open by default.</span><br>` : ''}
+    ${closedPositions.length ? `<span style="color:var(--text3)">${closedPositions.length} position(s) in this file are already closed — see the Historical positions section below.</span><br>` : ''}
+    <span style="color:var(--text3)">Est. P&amp;L is Current R × this pair's median realised $ per R from your closed trade history — an estimate, not a live price feed. "no basis" means there's no closed history yet for that pair to estimate from.</span>
+  `;
+
+  const avgR = positions.length ? positions.reduce((a,p)=>a+(parseFloat(p.latest['Current R'])||0),0)/positions.length : 0;
+  const opposedCount = positions.filter(p=>(p.latest['1H Trend vs Direction']||'').toLowerCase()==='opposed').length;
+  const longest = positions.length ? Math.max(...positions.map(p=>parseInt(p.latest['Minutes Since Fill'])||0)) : 0;
+
+  document.getElementById('lv-positions').textContent = positions.length;
+  document.getElementById('lv-avgr').textContent = avgR.toFixed(2);
+  setMetric('lv-opposed', opposedCount, opposedCount>0?'down':'');
+  document.getElementById('lv-longest').textContent = longest ? (longest/60).toFixed(1)+'h' : '—';
+
+  let estPnlTotal = 0, estPnlHasBasis = false;
+  positions.forEach(p=>{
+    const dpr = dollarsPerRForPair(p.latest['Pair']);
+    if(dpr!==null){ estPnlTotal += (parseFloat(p.latest['Current R'])||0) * dpr; estPnlHasBasis = true; }
+  });
+  setMetric('lv-estpnl', estPnlHasBasis ? (estPnlTotal>=0?'+':'')+'$'+estPnlTotal.toFixed(2) : '—', estPnlTotal>0?'up':estPnlTotal<0?'down':'');
+
+  document.getElementById('liveBody').innerHTML = renderPositionTableRows(positions, {
+    statusBadge: p => !p.matchedSignal ? '<span class="badge b-expired">unmatched</span>' : '<span class="badge b-pending">open</span>',
+    dollarCell: (p, r) => {
+      const dpr = dollarsPerRForPair(p.latest['Pair']);
+      if(dpr===null) return '<span style="color:var(--text3);font-size:11px">no basis</span>';
+      const est = r * dpr;
+      const cls = est>0?'up':est<0?'down':'neutral';
+      return `<span class="${cls}" title="Estimated from this pair's historical $ per R">~$${est.toFixed(2)}</span>`;
+    }
+  }) || `<tr><td colspan="12" style="text-align:center;color:var(--text3);padding:20px">No open (Pending) positions in this file</td></tr>`;
+
+  const selector = document.getElementById('liveSelector');
+  const curSel = selector.value;
+  selector.innerHTML = positions.map(p=>`<option value="${p.id}">${p.latest['Pair']} ${p.latest['Direction']} — ${p.latest['Signal ID']}</option>`).join('');
+  if(positions.some(p=>p.id===curSel)) selector.value = curSel;
+  selector.onchange = ()=>renderLiveRChart(groups);
+  renderLiveRChart(groups);
+
+  document.getElementById('liveTrendGrid').innerHTML = renderTrendGridFor(positions, 'open__');
+
+  buildLiveAlignmentAnalysis();
+  buildLiveHoldAnalysis();
+  buildHistoricalPositions(closedPositions);
+}
+
+function buildHistoricalPositions(closedPositions){
+  document.getElementById('histCountTag').textContent = closedPositions.length;
+
+  const wins = closedPositions.filter(p=>isWin(p.sigOutcome)).length;
+  const totalPnl = closedPositions.reduce((a,p)=>a+(parseFloat(p.matchedSignal?.['My P&L (AUD)'])||0),0);
+  const summaryLine = closedPositions.length
+    ? `<br><span style="color:var(--text3)">${wins} win / ${closedPositions.length-wins} loss · total P&amp;L <b style="color:${totalPnl>=0?'#3ddc84':'#ff5a5f'}">${totalPnl>=0?'+':''}$${totalPnl.toFixed(2)}</b> across these closed positions</span>`
+    : '';
+
+  document.getElementById('histMatchNote').innerHTML = closedPositions.length
+    ? `<span style="color:var(--text3)">${closedPositions.length} closed position(s), matched to signal log outcome. This is the same live-tracker data as above, just showing trades that have since settled.</span>${summaryLine}`
+    : `<span style="color:var(--text3)">No closed positions found in this live-tracker file — trades usually drop out of this export once they close, so this section will often be empty even when you have plenty of settled trades. See the Settled trades review below for full historical coverage.</span>`;
+
+  document.getElementById('histBody').innerHTML = renderPositionTableRows(closedPositions, {
+    statusBadge: p => {
+      const win = isWin(p.sigOutcome);
+      return `<span class="badge ${win?'b-win':'b-loss'}">${p.sigOutcome}</span>`;
+    },
+    dollarCell: p => {
+      const pnl = parseFloat(p.matchedSignal?.['My P&L (AUD)']);
+      if(isNaN(pnl)) return '<span style="color:var(--text3);font-size:11px">—</span>';
+      const cls = pnl>0?'up':pnl<0?'down':'neutral';
+      return `<span class="${cls}">${pnl>=0?'+':''}$${pnl.toFixed(2)}</span>`;
+    }
+  }) || `<tr><td colspan="12" style="text-align:center;color:var(--text3);padding:20px">No closed positions in this file</td></tr>`;
+
+  const histSelector = document.getElementById('histSelector');
+  const curSel = histSelector.value;
+  histSelector.innerHTML = '<option value="">All closed positions</option>' + closedPositions.map(p=>`<option value="${p.id}">${p.latest['Pair']} ${p.latest['Direction']} — ${p.latest['Signal ID']} (${p.sigOutcome})</option>`).join('');
+  if(closedPositions.some(p=>p.id===curSel)) histSelector.value = curSel;
+
+  const histGroups = {};
+  closedPositions.forEach(p => { histGroups[p.id] = p.rows; });
+  histSelector.onchange = ()=>{
+    const selectedPos = closedPositions.find(p=>p.id===histSelector.value);
+    HIST_SELECTED_SIGNAL_ID = selectedPos ? (selectedPos.latest['Signal ID']||null) : null;
+    renderHistRChart(histGroups);
+    applyHistSelectionFilter(closedPositions);
+  };
+  renderHistRChart(histGroups);
+  applyHistSelectionFilter(closedPositions);
+}
+
+function applyHistSelectionFilter(closedPositions){
+  const trendNote = document.getElementById('histTrendFilterNote');
+  const settledNote = document.getElementById('settledFilterNote');
+
+  if(HIST_SELECTED_SIGNAL_ID){
+    const selectedPos = closedPositions.find(p=>p.latest['Signal ID']===HIST_SELECTED_SIGNAL_ID);
+    const label = selectedPos ? `${selectedPos.latest['Pair']} ${selectedPos.latest['Direction']} — ${HIST_SELECTED_SIGNAL_ID}` : HIST_SELECTED_SIGNAL_ID;
+    const filterBanner = `<span style="color:var(--accent)">Filtered to: ${label}</span> <a href="javascript:void(0)" onclick="clearHistSelectionFilter()" style="margin-left:8px">clear filter</a>`;
+    if(trendNote) trendNote.innerHTML = filterBanner;
+    if(settledNote) settledNote.innerHTML = filterBanner;
+    document.getElementById('histTrendGrid').innerHTML = selectedPos ? renderTrendGridFor([selectedPos], 'hist__') : '<span style="color:var(--text3);font-size:13px">Selected position not found</span>';
+  } else {
+    if(trendNote) trendNote.innerHTML = '';
+    if(settledNote) settledNote.innerHTML = '';
+    document.getElementById('histTrendGrid').innerHTML = renderTrendGridFor(closedPositions, 'hist__');
+  }
+  renderSettledList();
+}
+
+function clearHistSelectionFilter(){
+  HIST_SELECTED_SIGNAL_ID = null;
+  buildLiveTracker();
+}
+
+function renderHistRChart(histGroups){
+  destroyChart('histR');
+  const id = document.getElementById('histSelector').value;
+  const rows = histGroups[id];
+  if(!rows || !rows.length) return;
+
+  const labels = rows.map(r=>{ const m=parseInt(r['Minutes Since Fill'])||0; return m>=60?(m/60).toFixed(1)+'h':m+'m'; });
+  const currentR = rows.map(r=> r['Current R']!==''&&r['Current R']!==undefined ? parseFloat(r['Current R']) : null);
+  const peakR = rows.map(r=> r['Peak R']!==''&&r['Peak R']!==undefined ? parseFloat(r['Peak R']) : null);
+
+  charts.histR = new Chart(document.getElementById('histRChart').getContext('2d'), {
+    type:'line',
+    data:{ labels, datasets:[
+      { label:'Current R', data: currentR, borderColor:'#a78bfa', pointRadius:2, borderWidth:1.8, tension:.15, spanGaps:true },
+      { label:'Peak R', data: peakR, borderColor:'#3ddc84', borderDash:[4,3], pointRadius:0, borderWidth:1.4, tension:.15, spanGaps:true }
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ position:'bottom', labels:{color:chartTextColor(), font:{size:10}, boxWidth:10} },
+        tooltip:{ callbacks:{
+          afterBody: ctx => {
+            const idx = ctx[0].dataIndex;
+            const row = rows[idx];
+            return ['1H trend: '+(row['1H Trend vs Direction']||'—'), 'Spread: '+(row['Spread']||'—')+'p', 'Dist to stop: '+(row['Distance To Stop (pips)']||'—')+'p'];
+          }
+        } } },
+      scales: baseScales({ x:{ title:{display:true,text:'time since fill',color:chartTextColor(),font:{size:10}}, ticks:{color:chartTextColor(), font:{size:9}, maxTicksLimit:12}, grid:{display:false} },
+                            y:{ ticks:{color:chartTextColor(), font:{size:10}, callback:v=>v+'R'}, grid:{color:chartGridColor()} } }) }
+  });
+}
+
+function showTrendPopup(evt, positionId, rowIndex){
+  const rows = window._trendPositionMap?.[positionId];
+  if(!rows) return;
+  const row = rows[rowIndex];
+  if(!row) return;
+  const popup = document.getElementById('trendPopup');
+  const t = (row['1H Trend vs Direction']||'—');
+  const tColor = t.toLowerCase()==='aligned'?'#3ddc84':t.toLowerCase()==='opposed'?'#ff5a5f':'#ffb454';
+  const mins = parseInt(row['Minutes Since Fill'])||0;
+  const heldStr = mins>=60 ? (mins/60).toFixed(1)+'h' : mins+'m';
+  const dateObj = parseAnyDate(row['Date'], row['Time']);
+  popup.innerHTML = `
+    <div class="tp-title">${formatAUDateTime(dateObj)}</div>
+    <div class="tp-row"><span class="tp-label">1H trend</span><b style="color:${tColor}">${t}</b></div>
+    <div class="tp-row"><span class="tp-label">Current R</span><b>${row['Current R']!==undefined && row['Current R']!=='' ? parseFloat(row['Current R']).toFixed(2)+'R' : '—'}</b></div>
+    <div class="tp-row"><span class="tp-label">Peak R</span><b>${row['Peak R']!==undefined && row['Peak R']!=='' ? parseFloat(row['Peak R']).toFixed(2)+'R' : '—'}</b></div>
+    <div class="tp-row"><span class="tp-label">Held</span><b>${heldStr}</b></div>
+    <div class="tp-row"><span class="tp-label">Dist to stop</span><b>${row['Distance To Stop (pips)']||'—'}p</b></div>
+    <div class="tp-row"><span class="tp-label">Spread</span><b>${row['Spread']||'—'}p</b></div>
+  `;
+  const rect = evt.target.getBoundingClientRect();
+  popup.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - 220)) + 'px';
+  popup.style.top = (rect.top - 8) + 'px';
+  popup.style.transform = 'translateY(-100%)';
+  popup.classList.add('show');
+}
+
+function hideTrendPopup(){
+  document.getElementById('trendPopup').classList.remove('show');
+}
+document.addEventListener('click', e=>{
+  if(!e.target.classList.contains('trend-block')) hideTrendPopup();
+});
+
+function getSettledTrades(){
+  return SIGS.filter(s => isDecided(outcomeOf(s)));
+}
+
+function findLiveHistoryForSignal(sig){
+  const sigId = sig['Signal ID'];
+  const oandaId = sig['OANDA ID'];
+  let rows = LIVE.filter(r => r['Signal ID'] === sigId);
+  if(!rows.length && oandaId) rows = LIVE.filter(r => r['OANDA ID'] === oandaId);
+  rows.sort((a,b)=> (parseInt(a['Minutes Since Fill'])||0) - (parseInt(b['Minutes Since Fill'])||0));
+  return rows;
+}
+
+function buildSettledTradesReview(){
+  const hasSettled = SIGS.some(s => isDecided(outcomeOf(s)));
+  if(!hasSettled) return;
+
+  const pairs = [...new Set(getSettledTrades().map(s=>s['Pair']).filter(Boolean))].sort();
+  const pairSel = document.getElementById('settledPairFilter');
+  const curPair = pairSel.value;
+  pairSel.innerHTML = '<option value="">All pairs</option>' + pairs.map(p=>`<option>${p}</option>`).join('');
+  if(pairs.includes(curPair)) pairSel.value = curPair;
+
+  ['settledOutcomeFilter','settledPairFilter','settledSort','settledExcludeWatchlist'].forEach(id=>{
+    document.getElementById(id).onchange = renderSettledList;
+  });
+  renderSettledList();
+}
+
+function renderSettledList(){
+  const outcomeFilter = document.getElementById('settledOutcomeFilter').value;
+  const pairFilter = document.getElementById('settledPairFilter').value;
+  const sortMode = document.getElementById('settledSort').value;
+  const excludeWatchlist = document.getElementById('settledExcludeWatchlist').checked;
+
+  let trades = getSettledTrades();
+  if(HIST_SELECTED_SIGNAL_ID) trades = trades.filter(s=>s['Signal ID']===HIST_SELECTED_SIGNAL_ID);
+  if(excludeWatchlist) trades = trades.filter(s=>s['Verdict']!=='WATCHLIST');
+  if(pairFilter) trades = trades.filter(s=>s['Pair']===pairFilter);
+  if(outcomeFilter==='win') trades = trades.filter(s=>isWin(outcomeOf(s)));
+  if(outcomeFilter==='loss') trades = trades.filter(s=>isLoss(outcomeOf(s)));
+
+  trades = trades.map(s=>({ s, pnl: parseFloat(s['My P&L (AUD)'])||0, date: parseAnyDate(s['Date'], s['Time']) }));
+
+  if(sortMode==='date_desc') trades.sort((a,b)=>(b.date?.getTime()||0)-(a.date?.getTime()||0));
+  else if(sortMode==='date_asc') trades.sort((a,b)=>(a.date?.getTime()||0)-(b.date?.getTime()||0));
+  else if(sortMode==='pnl_desc') trades.sort((a,b)=>b.pnl-a.pnl);
+  else if(sortMode==='pnl_asc') trades.sort((a,b)=>a.pnl-b.pnl);
+
+  document.getElementById('settledCount').textContent = trades.length + ' settled trades';
+
+  const list = document.getElementById('settledList');
+  list.innerHTML = trades.slice(0,150).map(({s,pnl,date})=>{
+    const sigIdx = SIGS.indexOf(s);
+    const o = outcomeOf(s);
+    const win = isWin(o);
+    const rowId = 'settled_'+sigIdx;
+    const badgeClass = win ? 'b-win' : 'b-loss';
+    return `<div class="settled-row" id="${rowId}">
+      <div class="settled-head" onclick="toggleSettledRow('${rowId}')">
+        <span class="badge ${badgeClass}">${o}</span>
+        <b>${s['Pair']||''}</b>
+        <span style="color:${s['Direction']==='Long'?'#3ddc84':'#ff5a5f'}">${s['Direction']||''}</span>
+        <span style="font-size:11px;color:var(--text3)">${formatAUDate(date)}</span>
+        <span style="font-size:12.5px;font-weight:600;color:${pnl>=0?'#3ddc84':'#ff5a5f'}">${pnl>=0?'+':''}$${pnl.toFixed(2)}</span>
+        <span style="font-size:11px;color:var(--text3)">Score ${s['Score']||'—'} · ${s['Verdict']||''}</span>
+        <span class="chev">▸</span>
+      </div>
+      <div class="settled-body" id="${rowId}_body"></div>
+    </div>`;
+  }).join('') || '<div style="text-align:center;color:var(--text3);padding:30px;font-size:13px">No settled trades match these filters</div>';
+
+  if(trades.length>150) list.innerHTML += `<div style="text-align:center;color:var(--text3);font-size:12px;padding:8px">Showing 150 of ${trades.length} — narrow filters to see more</div>`;
+}
+
+function toggleSettledRow(rowId){
+  const row = document.getElementById(rowId);
+  const wasOpen = row.classList.contains('open');
+  document.querySelectorAll('.settled-row.open').forEach(r=>{ if(r.id!==rowId) r.classList.remove('open'); });
+  row.classList.toggle('open', !wasOpen);
+  if(!wasOpen) renderSettledDetail(rowId);
+}
+
+function renderSettledDetail(rowId){
+  const idx = parseInt(rowId.replace('settled_',''));
+  const s = SIGS[idx];
+  if(!s) return;
+  const body = document.getElementById(rowId+'_body');
+  const liveHistory = findLiveHistoryForSignal(s);
+  const pnlAud = parseFloat(s['My P&L (AUD)'])||0;
+  const pnlPips = parseFloat(s['My P&L (Pips)'])||0;
+  const peakR = s['Peak R']||'—';
+  const entry = s['Entry']||s['Limit Price']||'—';
+  const myEntry = s['My Entry']||'—';
+  const stop = s['Stop']||'—';
+  const close = s['My Close']||'—';
+  const noteEsc = (s['Notes']||'').replace(/</g,'&lt;');
+  const tradeDate = parseAnyDate(s['Date'], s['Time']);
+  const tvLink = tradingViewLinkHtml(s['Pair'], { interval:'15', label:'View '+s['Pair']+' on TradingView (15M)' });
+
+  body.innerHTML = `
+    <div class="settled-detail-grid">
+      <div><span>Planned entry</span>${entry}</div>
+      <div><span>Actual fill</span>${myEntry}</div>
+      <div><span>Stop</span>${stop}</div>
+      <div><span>Close</span>${close}</div>
+      <div><span>P&amp;L (pips)</span>${pnlPips?pnlPips.toFixed(1):'—'}</div>
+      <div><span>P&amp;L (AUD)</span>$${pnlAud.toFixed(2)}</div>
+      <div><span>Peak R</span>${peakR}</div>
+      <div><span>Hold time</span>${s['Hold Time (Hours)']||'—'}h</div>
+    </div>
+    <div style="margin-bottom:12px">${tvLink} <span style="font-size:11px;color:var(--text3)">— opens live chart, not historical; scroll to ${formatAUDate(tradeDate)} ${s['Time']||''} to find this setup</span></div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:12px"><b>Signal notes:</b> ${noteEsc||'—'}</div>
+    ${liveHistory.length ? `<div style="margin-bottom:12px"><div style="font-size:11.5px;color:var(--text3);margin-bottom:6px">R-curve from live tracker (${liveHistory.length} snapshots)</div><div style="position:relative;height:160px"><canvas id="${rowId}_chart"></canvas></div></div>` : `<div style="font-size:11.5px;color:var(--text3);margin-bottom:12px">No live-tracker snapshot history found for this trade — it likely closed before being captured, or you haven't uploaded a tracker file covering this period.</div>`}
+    <div class="settled-notes">
+      <div style="font-size:11.5px;color:var(--text3);margin-bottom:6px">Your review notes</div>
+      <textarea id="${rowId}_notes" rows="2" placeholder="What did you learn from this one?" onblur="saveSettledNote('${s['Signal ID']}', this.value)">${(REVIEW_NOTES[s['Signal ID']]||'').replace(/</g,'&lt;')}</textarea>
+    </div>
+  `;
+
+  if(liveHistory.length){
+    const labels = liveHistory.map(r=>{ const m=parseInt(r['Minutes Since Fill'])||0; return m>=60?(m/60).toFixed(1)+'h':m+'m'; });
+    const currentR = liveHistory.map(r=> r['Current R']!==''&&r['Current R']!==undefined ? parseFloat(r['Current R']) : null);
+    const peakRSeries = liveHistory.map(r=> r['Peak R']!==''&&r['Peak R']!==undefined ? parseFloat(r['Peak R']) : null);
+    destroyChart(rowId+'_chart');
+    charts[rowId+'_chart'] = new Chart(document.getElementById(rowId+'_chart').getContext('2d'), {
+      type:'line',
+      data:{ labels, datasets:[
+        { label:'Current R', data: currentR, borderColor:'#4f8ef7', pointRadius:1.5, borderWidth:1.5, tension:.15, spanGaps:true },
+        { label:'Peak R', data: peakRSeries, borderColor:'#3ddc84', borderDash:[4,3], pointRadius:0, borderWidth:1.2, tension:.15, spanGaps:true }
+      ]},
+      options:{ responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ position:'bottom', labels:{color:chartTextColor(), font:{size:10}, boxWidth:10} } },
+        scales: baseScales({ x:{ ticks:{color:chartTextColor(), font:{size:9}, maxTicksLimit:10}, grid:{display:false} },
+                              y:{ ticks:{color:chartTextColor(), font:{size:10}, callback:v=>v+'R'}, grid:{color:chartGridColor()} } }) }
+    });
+  }
+}
+
+function saveSettledNote(signalId, text){
+  if(!signalId) return;
+  if(text && text.trim()) REVIEW_NOTES[signalId] = text;
+  else delete REVIEW_NOTES[signalId];
+  saveToStorage();
+}
+
+function buildLiveAlignmentAnalysis(){
+  destroyChart('liveAlign');
+  const states = ['aligned','mixed','opposed'];
+  const byState = states.map(st=>{
+    const rows = LIVE.filter(r=>(r['1H Trend vs Direction']||'').toLowerCase()===st && r['Current R']!=='' && r['Current R']!==undefined);
+    const vals = rows.map(r=>parseFloat(r['Current R'])).filter(v=>!isNaN(v));
+    const avg = vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null;
+    return { st, avg, n: vals.length };
+  }).filter(x=>x.n>0);
+
+  document.getElementById('liveAlignStats').innerHTML = byState.length ? byState.map(x=>
+    `<span style="margin-right:20px"><b style="text-transform:capitalize">${x.st}</b>: avg <b style="color:${x.avg>=0?'#3ddc84':'#ff5a5f'}">${x.avg.toFixed(2)}R</b> <span style="color:var(--text3)">(${x.n} snapshots)</span></span>`
+  ).join('') : '<span style="color:var(--text3)">Not enough data</span>';
+
+  charts.liveAlign = new Chart(document.getElementById('liveAlignChart').getContext('2d'), {
+    type:'bar',
+    data:{ labels: byState.map(x=>x.st.charAt(0).toUpperCase()+x.st.slice(1)), datasets:[{ data: byState.map(x=>x.avg.toFixed(2)), backgroundColor: byState.map(x=>x.avg>=0?'#3ddc84':'#ff5a5f'), borderWidth:0, borderRadius:4 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+      scales: baseScales({ x:{ ticks:{color:chartTextColor(), font:{size:11}}, grid:{display:false} },
+                            y:{ ticks:{color:chartTextColor(), font:{size:10}, callback:v=>v+'R'}, grid:{color:chartGridColor()} } }) }
+  });
+}
+
+function buildLiveHoldAnalysis(){
+  destroyChart('liveHold');
+  const buckets = [{l:'0-2h',min:0,max:120},{l:'2-6h',min:120,max:360},{l:'6-12h',min:360,max:720},{l:'12-24h',min:720,max:1440},{l:'24h+',min:1440,max:1e9}];
+  const withR = LIVE.filter(r=>r['Current R']!==''&&r['Current R']!==undefined && r['Minutes Since Fill']);
+  const bucketAvgs = buckets.map(b=>{
+    const inBucket = withR.filter(r=>{ const m = parseInt(r['Minutes Since Fill'])||0; return m>=b.min && m<b.max; });
+    const vals = inBucket.map(r=>parseFloat(r['Current R'])).filter(v=>!isNaN(v));
+    return { label: b.l, avg: vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null, n: vals.length };
+  }).filter(x=>x.n>0);
+
+  charts.liveHold = new Chart(document.getElementById('liveHoldChart').getContext('2d'), {
+    type:'bar',
+    data:{ labels: bucketAvgs.map(x=>x.label+' (n='+x.n+')'), datasets:[{ data: bucketAvgs.map(x=>x.avg.toFixed(2)), backgroundColor: bucketAvgs.map(x=>x.avg>=0?'#3ddc84':'#ff5a5f'), borderWidth:0, borderRadius:4 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+      scales: baseScales({ x:{ ticks:{color:chartTextColor(), font:{size:10}}, grid:{display:false} },
+                            y:{ ticks:{color:chartTextColor(), font:{size:10}, callback:v=>v+'R'}, grid:{color:chartGridColor()} } }) }
+  });
+}
+
+function renderLiveRChart(groups){
+  destroyChart('liveR');
+  const selector = document.getElementById('liveSelector');
+  const id = selector.value;
+  const rows = groups[id];
+  if(!rows || !rows.length) return;
+
+  const labels = rows.map(r=>{
+    const mins = parseInt(r['Minutes Since Fill'])||0;
+    return mins>=60 ? (mins/60).toFixed(1)+'h' : mins+'m';
+  });
+  const currentR = rows.map(r=>r['Current R']!==''&&r['Current R']!==undefined ? parseFloat(r['Current R']) : null);
+  const peakR = rows.map(r=>r['Peak R']!==''&&r['Peak R']!==undefined ? parseFloat(r['Peak R']) : null);
+
+  charts.liveR = new Chart(document.getElementById('liveRChart').getContext('2d'), {
+    type:'line',
+    data:{ labels, datasets:[
+      { label:'Current R', data: currentR, borderColor:'#4f8ef7', pointRadius:2, borderWidth:1.8, tension:.15, spanGaps:true },
+      { label:'Peak R', data: peakR, borderColor:'#3ddc84', borderDash:[4,3], pointRadius:0, borderWidth:1.4, tension:.15, spanGaps:true }
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ position:'bottom', labels:{color:chartTextColor(), font:{size:10}, boxWidth:10} },
+        tooltip:{ callbacks:{
+          afterBody: ctx => {
+            const idx = ctx[0].dataIndex;
+            const row = rows[idx];
+            return ['1H trend: '+(row['1H Trend vs Direction']||'—'), 'Spread: '+(row['Spread']||'—')+'p', 'Dist to stop: '+(row['Distance To Stop (pips)']||'—')+'p'];
+          }
+        } } },
+      scales: baseScales({ x:{ title:{display:true,text:'time since fill',color:chartTextColor(),font:{size:10}}, ticks:{color:chartTextColor(), font:{size:9}, maxTicksLimit:12}, grid:{display:false} },
+                            y:{ ticks:{color:chartTextColor(), font:{size:10}, callback:v=>v+'R'}, grid:{color:chartGridColor()} } }) }
+  });
+}
+
+function buildRecon(){
+  const fills = OANDA.filter(r=>r['TRANSACTION TYPE']==='ORDER_FILL');
+  const closeFills = fills.filter(r=>r['PL'] && parseFloat(r['PL'])!==0);
+  const financing = OANDA.filter(r=>r['TRANSACTION TYPE']==='DAILY_FINANCING' && r['BALANCE'] && r['BALANCE'].trim());
+
+  const allBals = OANDA.filter(r=>r['BALANCE']&&r['BALANCE'].trim()).map(r=>parseFloat(r['BALANCE']));
+  const closeBal = allBals.length ? allBals[allBals.length-1] : null;
+  const totPnl = closeFills.reduce((a,r)=>a+(parseFloat(r['PL'])||0),0);
+  const totFin = financing.reduce((a,r)=>a+(parseFloat(r['FINANCING'])||0),0);
+
+  document.getElementById('r-close').textContent = closeBal!==null ? '$'+closeBal.toFixed(2) : '—';
+  document.getElementById('r-pnl').textContent = totPnl ? ((totPnl>=0?'+':'')+'$'+totPnl.toFixed(2)) : '—';
+  document.getElementById('r-fin').textContent = totFin ? ((totFin>=0?'+':'')+'$'+totFin.toFixed(4)) : '—';
+
+  const traded = SIGS.filter(s=>s['Auto Trade']==='Traded' && s['OANDA ID']);
+  const reconRows = traded.map(sig=>{
+    const oandaId = safeStr(sig['OANDA ID']);
+    const openFill = OANDA.find(r=>{
+      if(r['TRANSACTION TYPE']!=='ORDER_FILL') return false;
+      if(r['TICKET']===oandaId) return true;
+      if(r['TRADE_IDS']){
+        try{ const ids = JSON.parse(r['TRADE_IDS']); if(ids.includes(oandaId)) return true; }catch(e){}
+      }
+      return false;
+    });
+    const sigPairNorm = (sig['Pair']||'').replace('_','/').toUpperCase();
+    const closeFill = closeFills.find(r=>{
+      const fillInstr = (r['INSTRUMENT']||'').replace('_','/').toUpperCase();
+      if(fillInstr !== sigPairNorm) return false;
+      if(r['TICKET']===oandaId) return true;
+      if(r['TRADE_IDS']){
+        try{ const ids = JSON.parse(r['TRADE_IDS']); if(ids.includes(oandaId)) return true; }catch(e){}
+      }
+      return !openFill;
+    });
+    const sigEntry = parseFloat(sig['Entry']) || parseFloat(sig['Limit Price']) || null;
+    const oandaEntry = openFill ? parseFloat(openFill['PRICE']) : null;
+    const pipMult = (sig['Pair']||'').includes('JPY') ? 100 : 10000;
+    const entryDiff = (sigEntry && oandaEntry) ? Math.abs(sigEntry-oandaEntry)*pipMult : null;
+    const sigPnlAud = parseFloat(sig['My P&L (AUD)']) || null;
+    const oandaPnl = closeFill ? parseFloat(closeFill['PL']) : null;
+    const pnlDiff = (sigPnlAud!==null && oandaPnl!==null) ? Math.abs(sigPnlAud-oandaPnl) : null;
+    const status = openFill ? 'matched' : 'unmatched';
+    return { sig, openFill, sigEntry, oandaEntry, entryDiff, sigPnlAud, oandaPnl, pnlDiff, status };
+  });
+
+  reconRows.sort((a,b)=>{
+    const da = parseAnyDate(a.sig['Date'], a.sig['Time'])?.getTime() || 0;
+    const db = parseAnyDate(b.sig['Date'], b.sig['Time'])?.getTime() || 0;
+    return db - da;
+  });
+
+  const matchedCount = reconRows.filter(r=>r.status==='matched').length;
+  document.getElementById('reconBody').innerHTML = reconRows.map(r=>{
+    const statusColor = r.status==='matched' ? 'color:#3ddc84' : 'color:#ff5a5f';
+    const ediff = r.entryDiff!==null ? r.entryDiff.toFixed(1)+'p' : '—';
+    const pnlDiffStr = r.pnlDiff!==null ? ('$'+r.pnlDiff.toFixed(2)) : '—';
+    return `<tr>
+      <td style="font-size:11px">${r.sig['OANDA ID']||'—'}</td>
+      <td>${r.sig['Pair']||''}</td>
+      <td>${r.sig['Direction']||''}</td>
+      <td>${r.sigEntry?r.sigEntry.toFixed(5):'—'}</td>
+      <td>${r.oandaEntry?r.oandaEntry.toFixed(5):'—'}</td>
+      <td>${ediff}</td>
+      <td>${r.sigPnlAud?'$'+r.sigPnlAud.toFixed(2):'—'}</td>
+      <td>${r.oandaPnl?'$'+r.oandaPnl.toFixed(2):'—'}</td>
+      <td>${pnlDiffStr}</td>
+      <td style="${statusColor};font-weight:600">${r.status}</td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="10" style="color:var(--text3);text-align:center;padding:20px">No traded signals with an OANDA ID found in the signal log.</td></tr>`;
+
+  if(reconRows.length && matchedCount===0){
+    const sampleOandaId = reconRows[0]?.sig['OANDA ID'];
+    const sampleTickets = OANDA.filter(r=>r['TRANSACTION TYPE']==='ORDER_FILL').slice(0,3).map(r=>r['TICKET']).join(', ');
+    const note = document.getElementById('reconMatchDiagnostic');
+    if(note) note.innerHTML = `<span style="color:#ffb454">All ${reconRows.length} rows are unmatched.</span> Your signal log's OANDA ID for the first row is "<b>${sampleOandaId}</b>", but the OANDA data's fill tickets look like: ${sampleTickets||'(none found)'}. These likely come from different ID schemes (e.g. order ID vs ticket vs trade ID) — worth checking which field your signal log actually populates "OANDA ID" with so the matcher can be pointed at the right one.`;
+  } else {
+    const note = document.getElementById('reconMatchDiagnostic');
+    if(note) note.innerHTML = matchedCount ? `<span style="color:#3ddc84">${matchedCount} of ${reconRows.length} traded signals matched to an OANDA fill.</span>` : '';
+  }
+
+  const txbody = document.getElementById('txBody');
+  const sortedTx = OANDA.filter(r=>r['TICKET']&&r['TICKET'].trim()).sort((a,b)=>{
+    const da = parseAnyDate(a['TRANSACTION DATE'])?.getTime() || 0;
+    const db = parseAnyDate(b['TRANSACTION DATE'])?.getTime() || 0;
+    return db - da;
+  });
+  txbody.innerHTML = sortedTx.slice(0,150).map(r=>{
+    const pnl = parseFloat(r['PL']);
+    const pnlClass = pnl>0?'up':pnl<0?'down':'';
+    return `<tr>
+      <td style="font-size:11px;white-space:nowrap">${formatAUDateTime(parseAnyDate(r['TRANSACTION DATE']))}</td>
+      <td><span class="chip">${r['TRANSACTION TYPE']||''}</span></td>
+      <td>${r['INSTRUMENT']||r['DETAILS']||''}</td>
+      <td>${r['PRICE']||''}</td>
+      <td>${r['UNITS']||''}</td>
+      <td class="${pnlClass}">${r['PL']&&r['PL'].trim() ? '$'+r['PL'] : '—'}</td>
+      <td>${r['BALANCE']&&r['BALANCE'].trim() ? '$'+parseFloat(r['BALANCE']).toFixed(2) : '—'}</td>
+    </tr>`;
+  }).join('');
+
+  const orphanTx = closeFills.filter(r=>{
+    const instr = r['INSTRUMENT']||'';
+    return !traded.some(s=> (s['Pair']||'') === instr);
+  });
+  const orphanDiv = document.getElementById('reconOrphan');
+  if(orphanTx.length){
+    orphanDiv.innerHTML = '<table><thead><tr><th>Ticket</th><th>Date</th><th>Instrument</th><th>P&L</th></tr></thead><tbody>' +
+      orphanTx.map(r=>`<tr><td>${r['TICKET']}</td><td style="font-size:11px">${formatAUDateTime(parseAnyDate(r['TRANSACTION DATE']))}</td><td>${r['INSTRUMENT']}</td><td class="${parseFloat(r['PL'])>0?'up':'down'}">$${parseFloat(r['PL']).toFixed(2)}</td></tr>`).join('') +
+      '</tbody></table>';
+  } else {
+    orphanDiv.innerHTML = '<span style="color:#3ddc84">✓ No orphan OANDA trades found — every closed position matches a signal</span>';
+  }
+}
+
+function computeStreak(outcomes){
+  let streak = {type:'none', count:0};
+  for(let i=outcomes.length-1;i>=0;i--){
+    const o = outcomes[i].toLowerCase();
+    const win = o.startsWith('win');
+    const loss = o.includes('loss');
+    if(!win && !loss) continue;
+    const type = win ? 'win' : 'loss';
+    if(streak.type==='none') streak = {type, count:1};
+    else if(streak.type===type) streak.count++;
+    else break;
+  }
+  return streak;
+}
+
+function buildWarnings(){
+  const warns = [];
+
+  if(!SIGS.length && !OANDA.length){
+    document.getElementById('warnContainer').innerHTML = `<div class="empty-state"><div class="big">No data loaded</div><div>Upload your signal and OANDA data to generate health checks and warnings.</div></div>`;
+    document.getElementById('tabCountWarn').textContent = '0';
+    return;
+  }
+
+  const pending = SIGS.filter(s=>outcomeOf(s)==='Pending');
+  if(pending.length) warns.push({type:'warn', msg:`${pending.length} trade(s) still marked Pending — outcome not yet recorded.`, detail: pending.map(s=>s['Pair']).join(', '), action:'Check the Settled trades review or your broker platform to confirm whether these have actually closed, and update the outcome via the signal log edit modal.'});
+
+  const v2dec = SIGS.filter(s=>s['Config Version']==='mom-v2' && isDecided(s['System Outcome']||''));
+  if(v2dec.length < 50) warns.push({type:'info', msg:`Mom-v2 is at ${v2dec.length}/50 decided trades toward the structured review milestone.`, action:`Keep collecting — ${50-v2dec.length} more decided trades needed before the planned mom-v2 review.`});
+
+  const tradedOutcomes = SIGS.filter(s=>s['Auto Trade']==='Traded').map(s=>s['System Outcome']||s['My Outcome']||'');
+  const streak = computeStreak(tradedOutcomes);
+  if(streak.type==='loss' && streak.count>=3) warns.push({type:'danger', msg:`Current losing streak: ${streak.count} trades in a row.`, action:'Pause new entries and review the last few losses for a common cause (session, pair, F-score pattern) before the next signal fires. Consider a manual circuit-breaker if the streak continues.'});
+
+  const execPairs = SIGS.filter(s=>s['Auto Trade']==='Traded').map(s=>s['Pair']);
+  const pairCounts = {};
+  execPairs.forEach(p=>{ pairCounts[p]=(pairCounts[p]||0)+1; });
+  const freqPair = Object.entries(pairCounts).sort((a,b)=>b[1]-a[1])[0];
+  if(freqPair && freqPair[1]>10) warns.push({type:'warn', msg:`${freqPair[0]} has ${freqPair[1]} executed trades — possible concentration risk.`, action:`Review the Max Currency Exposure control setting and check whether ${freqPair[0]} should be capped or temporarily deprioritised.`});
+
+  const f1zeros = SIGS.filter(s=>s['Auto Trade']==='Traded' && fValuesFor(s).F1===0);
+  if(f1zeros.length>3) warns.push({type:'warn', msg:`${f1zeros.length} executed trades have F1:0 (no confirmed swing structure).`, action:'Check the F-indicators tab for F1\'s win rate at value 0 — if it\'s materially worse, consider raising the minimum F1 gate in the scoring config.'});
+
+  const f9Stats = fIndicatorStats().F9;
+  if(f9Stats && f9Stats[1] && f9Stats[0]){
+    const wr1 = f9Stats[1].win/f9Stats[1].total*100;
+    const wr0 = f9Stats[0].win/f9Stats[0].total*100;
+    const gap = wr1-wr0;
+    if(gap<25 && (f9Stats[1].total+f9Stats[0].total)>=15){
+      warns.push({type:'warn', msg:`F9's edge has narrowed to ${gap.toFixed(0)}pp (F9:1 ${wr1.toFixed(0)}% vs F9:0 ${wr0.toFixed(0)}%) — historically this was your strongest predictor at ~53pp.`, action:'Open the F-indicators tab and check the F9 rolling trend chart for when the narrowing started — that may point to a regime change worth investigating before trusting F9 as heavily in scoring.'});
+    } else if(gap>=25){
+      warns.push({type:'success', msg:`F9 edge holding up: F9:1 ${wr1.toFixed(0)}% WR vs F9:0 ${wr0.toFixed(0)}% WR (${gap.toFixed(0)}pp spread, n=${f9Stats[1].total+f9Stats[0].total}).`});
+    }
+  }
+
+  const wideSpreads = SIGS.filter(s=>{ const sp = parseFloat(s['Spread']); return sp>3.5 && s['Auto Trade']==='Traded'; });
+  if(wideSpreads.length) warns.push({type:'warn', msg:`${wideSpreads.length} executed trades had spread >3.5 pips at signal time.`, detail: wideSpreads.map(s=>s['Pair']).join(', '), action:'Review the F7 spread-penalty threshold for the affected pairs — JPY crosses and minors may need a wider tolerance band than majors.'});
+
+  const londonOpen = SIGS.filter(s=>s['Auto Trade']==='Traded' && (s['Session']||'').includes('London Open'));
+  const londonWins = londonOpen.filter(s=>isWin(s['System Outcome']||''));
+  if(londonOpen.length>=3){
+    const wr = Math.round(londonWins.length/londonOpen.length*100);
+    if(wr<30) warns.push({type:'danger', msg:`London Open session win rate: ${wr}% (${londonWins.length}/${londonOpen.length}).`, action:'Consider suppressing new signals during London Open, or add a session-specific score penalty until this improves with more data.'});
+  }
+
+  const balRows = OANDA.filter(r=>r['BALANCE']&&r['BALANCE'].trim());
+  if(balRows.length>=2){
+    const first = parseFloat(balRows[0]['BALANCE']);
+    const last = parseFloat(balRows[balRows.length-1]['BALANCE']);
+    const dd = (first-last)/first*100;
+    if(dd>10) warns.push({type:'danger', msg:`Account drawdown: ${dd.toFixed(1)}% from opening balance ($${first.toFixed(2)} → $${last.toFixed(2)}).`, action:'Review recent losing trades for a common pattern, and consider reducing position size or pausing auto-trading until the cause is understood.'});
+  }
+
+  const nf = SIGS.filter(s=>s['Verdict']==='VALID-L' && s['Auto Trade']==='Limit Expired');
+  if(nf.length>5) warns.push({type:'info', msg:`${nf.length} VALID-L limit orders expired unfilled.`, action:'Check whether price revisited those limit levels after expiry — if it consistently does, the limit GTD window may be too short.'});
+
+  const overlapTrades = SIGS.filter(s=>s['Auto Trade']==='Traded' && s['Currency Overlap'] && s['Currency Overlap'].trim() && s['Currency Overlap'].toUpperCase()!=='FALSE');
+  if(overlapTrades.length){
+    const overlapDecided = overlapTrades.filter(s=>isDecided(s['System Outcome']||''));
+    const overlapLoss = overlapDecided.filter(s=>isLoss(s['System Outcome']||''));
+    if(overlapDecided.length){
+      const lossRate = Math.round(overlapLoss.length/overlapDecided.length*100);
+      warns.push({type: lossRate>50?'warn':'info', msg:`${overlapTrades.length} executed trades flagged with currency overlap exposure — ${lossRate}% loss rate (${overlapLoss.length}/${overlapDecided.length}).`, action: lossRate>50 ? 'Review the currency exposure cap logic — overlapping exposure is correlating with losses here, which may mean correlated pairs are amplifying drawdown rather than diversifying it.' : 'Loss rate on overlapping exposure looks in line with overall performance — no action needed yet, keep monitoring as sample size grows.'});
+    }
+  }
+
+  const verdictTiers = ['VALID','VALID-L','WATCHLIST'];
+  const tierWRs = verdictTiers.map(t=>{
+    const tdec = SIGS.filter(s=>s['Verdict']===t && s['Auto Trade']==='Traded' && isDecided(s['System Outcome']||''));
+    const tw = tdec.filter(s=>isWin(s['System Outcome']||''));
+    return { t, n: tdec.length, wr: tdec.length ? tw.length/tdec.length*100 : null };
+  }).filter(x=>x.wr!==null);
+  if(tierWRs.length>=2){
+    const sorted = [...tierWRs].sort((a,b)=>b.wr-a.wr);
+    if(sorted[0].t!=='VALID' && tierWRs.find(x=>x.t==='VALID')){
+      warns.push({type:'warn', msg:`${sorted[0].t} is currently outperforming VALID on win rate (${sorted[0].wr.toFixed(0)}% vs ${(tierWRs.find(x=>x.t==='VALID').wr).toFixed(0)}%).`, action:'Open the Verdict tier win rate chart on Analytics — if this holds with more data, the VALID score threshold may be set too low or too high relative to VALID-L.'});
+    }
+  }
+
+  if(LIVE.length){
+    const groups = groupLiveByPosition();
+    const positions = Object.values(groups).map(rows=>rows[rows.length-1]);
+    const opposed = positions.filter(p=>(p['1H Trend vs Direction']||'').toLowerCase()==='opposed');
+    if(opposed.length) warns.push({type:'warn', msg:`${opposed.length} open position(s) now have 1H trend opposed to their direction.`, detail: opposed.map(p=>p['Pair']+' '+p['Direction']).join(', '), action:'Check these positions on the Live trades tab — a trend flip against an open position is a leading indicator worth watching closely, especially if it\'s also drifting toward the dead-trade threshold.'});
+
+    const deepNegative = positions.filter(p=>(parseFloat(p['Current R'])||0)<=-0.3 && (parseInt(p['Minutes Since Fill'])||0)>240);
+    if(deepNegative.length) warns.push({type:'warn', msg:`${deepNegative.length} open position(s) held 4h+ while sitting at -0.3R or worse.`, detail: deepNegative.map(p=>p['Pair']).join(', '), action:'These are dead-trade exit candidates — confirm the dead-trade exit logic is active and check why it hasn\'t triggered yet for these positions.'});
+  }
+
+  if(!warns.length) warns.push({type:'success', msg:'No active warnings. System looks healthy.'});
+
+  function warnId(w){
+    let hash = 0;
+    const str = w.type + '|' + w.msg;
+    for(let i=0;i<str.length;i++){ hash = ((hash<<5)-hash+str.charCodeAt(i))|0; }
+    return 'w_' + Math.abs(hash);
+  }
+
+  let acked = {};
+  try{ acked = JSON.parse(localStorage.getItem('fxmonitor_acked_warnings_v1')||'{}'); }catch(e){}
+
+  const visibleWarns = warns.filter(w => w.type==='success' || !acked[warnId(w)]);
+  const ackedCount = warns.length - visibleWarns.length;
+
+  const warnCount = visibleWarns.filter(w=>w.type==='danger'||w.type==='warn').length;
+  document.getElementById('tabCountWarn').textContent = warnCount;
+
+  const listHtml = visibleWarns.map(w=>{
+    const cls = w.type==='danger'?'alert-danger':w.type==='warn'?'alert-warn':w.type==='success'?'alert-success':'alert-info';
+    const icon = w.type==='danger'?'⛔':w.type==='warn'?'⚠️':w.type==='success'?'✅':'ℹ️';
+    const id = warnId(w);
+    const ackBtn = w.type!=='success' ? `<button class="warn-ack-btn" onclick="acknowledgeWarning('${id}')" title="Acknowledge and clear this item">✓ Acknowledge</button>` : '';
+    return `<div class="alert ${cls}"><span class="ic">${icon}</span><div style="flex:1"><div>${w.msg}</div>${w.detail?`<div class="detail">${w.detail}</div>`:''}${w.action?`<div class="action"><b>Recommended:</b> ${w.action}</div>`:''}</div>${ackBtn}</div>`;
+  }).join('');
+
+  const ackedNote = ackedCount ? `<div style="font-size:11.5px;color:var(--text3);margin-top:4px">${ackedCount} acknowledged item${ackedCount===1?'':'s'} hidden. <a href="javascript:void(0)" onclick="clearAcknowledgedWarnings()">show all</a></div>` : '';
+
+  document.getElementById('warnContainer').innerHTML = (listHtml || '<div class="empty-state"><div class="big">All clear</div><div>No active warnings to show.</div></div>') + ackedNote;
+}
+
+function acknowledgeWarning(id){
+  let acked = {};
+  try{ acked = JSON.parse(localStorage.getItem('fxmonitor_acked_warnings_v1')||'{}'); }catch(e){}
+  acked[id] = true;
+  localStorage.setItem('fxmonitor_acked_warnings_v1', JSON.stringify(acked));
+  buildWarnings();
+}
+
+function clearAcknowledgedWarnings(){
+  localStorage.removeItem('fxmonitor_acked_warnings_v1');
+  buildWarnings();
+}
+
+loadFromStorage();
+updateAll();
+
+if(LIVE_FEED_URL){
+  document.getElementById('liveFeedBtnLabel').textContent = 'Live feed connected';
+  fetchLiveFeed(false);
+  setupLiveFeedAutoRefresh();
+}
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(err=>console.warn('Service worker registration failed:', err));
+  });
+}
+</script>
+</body>
+</html>
