@@ -57,6 +57,9 @@ input[type=file]{display:none}
 .dr-pill{font-size:12px;padding:5px 12px;border-radius:14px;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);cursor:pointer;white-space:nowrap}
 .dr-pill:hover{background:#22272f;color:var(--text)}
 .dr-pill.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.dr-select{font-size:12px;padding:5px 10px;border-radius:14px;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);cursor:pointer}
+.dr-select:hover{background:#22272f;color:var(--text)}
+.dr-select:focus{border-color:var(--accent);color:var(--text)}
 
 .page{display:none}
 .page.active{display:block;animation:fadein .15s ease}
@@ -265,6 +268,9 @@ a:hover{text-decoration:underline}
   <button class="dr-pill" data-range="30d" onclick="setDateRange('30d')">Last 30 days</button>
   <button class="dr-pill" data-range="mtd" onclick="setDateRange('mtd')">MTD</button>
   <button class="dr-pill active" data-range="all" onclick="setDateRange('all')">All time</button>
+  <span style="width:1px;height:18px;background:var(--border2);margin:0 4px"></span>
+  <select id="modeFilterSelect" class="dr-select" onchange="setModeFilter(this.value)"><option value="">All modes</option></select>
+  <select id="sessionFilterSelect" class="dr-select" onchange="setSessionFilter(this.value)"><option value="">All sessions</option></select>
   <span id="dateRangeLabel" style="font-size:11.5px;color:var(--text3);margin-left:8px"></span>
 </div>
 
@@ -333,7 +339,7 @@ a:hover{text-decoration:underline}
           <label><input type="checkbox" value="Loss" checked> Loss</label>
           <label><input type="checkbox" value="Pending" checked> Pending</label>
           <label><input type="checkbox" value="Never Filled" checked> Never Filled</label>
-          <label><input type="checkbox" value="Manual Close" checked> Manual Close</label>
+          <label><input type="checkbox" value="(Short)" checked> Closed early (Short)</label>
         </div>
       </div>
       <input type="text" placeholder="Search pair / signal ID..." id="fSearch" style="width:200px">
@@ -374,13 +380,13 @@ a:hover{text-decoration:underline}
         <div style="position:relative;height:190px"><canvas id="modeChart" role="img" aria-label="Trade mode split"></canvas></div>
       </div>
       <div class="card">
-        <h3>Stopped out vs dead-trade exit <span class="hint">does drift cost more than a clean stop?</span></h3>
-        <div style="position:relative;height:190px"><canvas id="overrideChart" role="img" aria-label="Comparison of stopped-out losses vs dead-trade exits, by average dollar loss and average hold time"></canvas></div>
+        <h3>Stopped out vs early close <span class="hint">does drift / early exit cost more than a clean stop?</span></h3>
+        <div style="position:relative;height:190px"><canvas id="overrideChart" role="img" aria-label="Comparison of stopped-out losses vs early closes, by average dollar loss and average hold time"></canvas></div>
         <div id="overrideNote" style="font-size:11.5px;margin-top:10px;line-height:1.5"></div>
       </div>
     </div>
     <div class="card">
-      <h3>When do dead-trade exits cluster? <span class="hint">exit hour, AEST — is this a liquidity-gap problem at specific hours?</span></h3>
+      <h3>When do early closes cluster? <span class="hint">exit hour, AEST — is this a liquidity-gap problem at specific hours?</span></h3>
       <div id="deadTradeTimeNote" style="font-size:11.5px;margin-bottom:10px;line-height:1.5"></div>
       <div style="position:relative;height:200px"><canvas id="deadTradeTimeChart" role="img" aria-label="Dead-trade exit count by hour of day, AEST, compared to stopped-out losses"></canvas></div>
     </div>
@@ -445,6 +451,10 @@ a:hover{text-decoration:underline}
       <h3>Win rate ranking <span class="hint">best-performing value per indicator vs the mom-v2 baseline</span></h3>
       <div style="position:relative;height:220px"><canvas id="fRankChart" role="img" aria-label="Win rate at each F-indicator's best-performing value, compared to overall baseline win rate"></canvas></div>
       <div id="fRankNote" style="font-size:12px;color:var(--text3);margin-top:10px;line-height:1.6"></div>
+    </div>
+    <div class="card">
+      <h3>P&amp;L by F-indicator value <span class="hint">total $ contributed by each value — does a good win rate actually translate to money?</span></h3>
+      <div id="fPnlGrid" class="grid g3"></div>
     </div>
     <div class="grid g3" id="fIndicatorGrid"></div>
     <div class="card">
@@ -623,8 +633,10 @@ a:hover{text-decoration:underline}
       <label style="font-size:12px;color:var(--text2)">My Outcome
         <select id="editOutcome" style="width:100%;margin-top:4px">
           <option value="">—</option>
-          <option>Win</option><option>Win T1</option><option>Win T1+T2</option>
-          <option>Loss</option><option>Manual Close (Profit)</option><option>Manual Close (Loss)</option>
+          <option>Win (Stop Loss)</option><option>Loss (Stop Loss)</option>
+          <option>Win (Take Profit)</option>
+          <option>Win (Short)</option><option>Loss (Short)</option>
+          <option>Win T1</option><option>Win T1+T2</option>
           <option>Pending</option><option>Never Filled</option>
         </select>
       </label>
@@ -696,6 +708,37 @@ let LIVE_FEED_AUTO = localStorage.getItem('fxmonitor_live_feed_auto_v1') !== 'fa
 let liveFeedIntervalHandle = null;
 let charts = {};
 let DATE_RANGE = 'all';
+let MODE_FILTER = '';
+let SESSION_FILTER = '';
+
+function setModeFilter(val){
+  MODE_FILTER = val;
+  updateAll();
+}
+
+function setSessionFilter(val){
+  SESSION_FILTER = val;
+  updateAll();
+}
+
+function populateModeSessionFilters(){
+  const cleanSession = s => (s['Session']||'').replace(/[^\w\s\/]/g,'').trim();
+  const modes = [...new Set(SIGS.map(s=>s['Mode']).filter(Boolean))].sort();
+  const sessions = [...new Set(SIGS.map(cleanSession).filter(Boolean))].sort();
+
+  const modeSel = document.getElementById('modeFilterSelect');
+  const sessSel = document.getElementById('sessionFilterSelect');
+  if(modeSel){
+    const cur = modeSel.value;
+    modeSel.innerHTML = '<option value="">All modes</option>' + modes.map(m=>`<option>${m}</option>`).join('');
+    if(modes.includes(cur)) modeSel.value = cur;
+  }
+  if(sessSel){
+    const cur = sessSel.value;
+    sessSel.innerHTML = '<option value="">All sessions</option>' + sessions.map(s=>`<option>${s}</option>`).join('');
+    if(sessions.includes(cur)) sessSel.value = cur;
+  }
+}
 
 function setDateRange(range){
   DATE_RANGE = range;
@@ -738,8 +781,16 @@ function inDateRange(date){
 
 function filterSignalsByRange(rows){
   const bounds = getDateRangeBounds();
-  if(!bounds) return rows;
-  return rows.filter(s => inDateRange(parseAnyDate(s['Date'], s['Time'])));
+  if(bounds){
+    rows = rows.filter(s => inDateRange(parseAnyDate(s['Date'], s['Time'])));
+  }
+  if(MODE_FILTER){
+    rows = rows.filter(s => s['Mode']===MODE_FILTER);
+  }
+  if(SESSION_FILTER){
+    rows = rows.filter(s => (s['Session']||'').replace(/[^\w\s\/]/g,'').trim()===SESSION_FILTER);
+  }
+  return rows;
 }
 
 function filterOandaByRange(rows){
@@ -1024,6 +1075,7 @@ function clearAllData(){
 }
 
 function updateAll(){
+  populateModeSessionFilters();
   const statusEl = document.getElementById('statusStrip');
   const sigStatus = SIGS.length ? `<span class="ok">✓ ${SIGS.length} signals</span>` : `<span class="missing">No signals</span>`;
   const oandaStatus = OANDA.length ? `<span class="ok">✓ ${OANDA.length} OANDA rows</span>` : `<span class="missing">No OANDA data</span>`;
@@ -1038,13 +1090,23 @@ function updateAll(){
   document.getElementById('tabCountLive').textContent = LIVE.length ? new Set(LIVE.map(r=>r['OANDA ID'])).size : 0;
 
   const rangeLabels = { week:'this week', '7d':'the last 7 days', '14d':'the last 14 days', '30d':'the last 30 days', mtd:'month to date', all:'all time' };
-  const scopeText = DATE_RANGE==='all' ? 'Showing all-time data' : `Showing ${rangeLabels[DATE_RANGE]} only — change the range pill above to widen or narrow this`;
+  let scopeText = DATE_RANGE==='all' ? 'Showing all-time data' : `Showing ${rangeLabels[DATE_RANGE]} only — change the range pill above to widen or narrow this`;
+  const filterBits = [];
+  if(MODE_FILTER) filterBits.push(`mode: ${MODE_FILTER}`);
+  if(SESSION_FILTER) filterBits.push(`session: ${SESSION_FILTER}`);
+  if(filterBits.length) scopeText += ` · filtered to ${filterBits.join(', ')}`;
   const scopeNoteEl1 = document.getElementById('analyticsScopeNote');
   const scopeNoteEl2 = document.getElementById('findicatorsScopeNote');
   const scopeNoteEl0 = document.getElementById('overviewScopeNote');
-  if(scopeNoteEl0) scopeNoteEl0.textContent = 'Scoped to VALID and VALID-L signals only — WATCHLIST excluded. ' + (DATE_RANGE==='all' ? 'Showing all-time data.' : `Showing ${rangeLabels[DATE_RANGE]} only.`);
+  if(scopeNoteEl0){
+    let overviewScope = 'Scoped to VALID and VALID-L signals only — WATCHLIST excluded.';
+    if(DATE_RANGE!=='all') overviewScope += ` Showing ${rangeLabels[DATE_RANGE]} only.`;
+    else overviewScope += ' Showing all-time data.';
+    if(filterBits.length) overviewScope += ` Filtered to ${filterBits.join(', ')}.`;
+    scopeNoteEl0.textContent = overviewScope;
+  }
   if(scopeNoteEl1) scopeNoteEl1.textContent = scopeText;
-  if(scopeNoteEl2) scopeNoteEl2.textContent = scopeText + ' (the F9 trend chart at the bottom is always full-history)';
+  if(scopeNoteEl2) scopeNoteEl2.textContent = scopeText + ' — counts executed mom-v2 trades only (Auto Trade = Traded), all verdicts within mom-v2 included. The edge-over-time chart at the bottom is always full-history and ignores the date range and mode/session filters.';
 
   const hasAny = SIGS.length || OANDA.length || LIVE.length;
   document.getElementById('overviewEmpty').style.display = SIGS.length ? 'none' : 'block';
@@ -1068,8 +1130,8 @@ function updateAll(){
 }
 
 function outcomeOf(s){ return s['My Outcome'] || s['System Outcome'] || ''; }
-function isWin(o){ return o.toLowerCase().startsWith('win'); }
-function isLoss(o){ return o.toLowerCase().includes('loss'); }
+function isWin(o){ return o.toLowerCase().trim().startsWith('win'); }
+function isLoss(o){ return o.toLowerCase().trim().startsWith('loss'); }
 function isDecided(o){ return isWin(o) || isLoss(o); }
 
 const F_KEYS = ['F1','F2','F3','F4','F7','F8','F9'];
@@ -1548,19 +1610,22 @@ function buildAnalytics(){
   const losses = exec.filter(s=>isLoss(outcomeOf(s)));
   const classifyExit = s=>{
     const o = (outcomeOf(s)||'').toLowerCase();
+    if(o.includes('(stop loss)')) return 'Stopped out';
+    if(o.includes('(take profit)')) return 'Take profit';
+    if(o.includes('(short)')) return 'Closed early (Short)';
     if(o.includes('dead trade')) return 'Dead-trade exit';
-    return 'Stopped out';
+    return 'Other';
   };
-  const reasons = ['Stopped out','Dead-trade exit'];
+  const reasons = ['Stopped out','Closed early (Short)','Dead-trade exit','Other'];
   const reasonData = reasons.map(r=>{
-    const rows = losses.filter(s=>classifyExit(s)===r && !(outcomeOf(s)||'').toLowerCase().includes('manual close'));
+    const rows = losses.filter(s=>classifyExit(s)===r);
     const pnlVals = rows.map(s=>parseFloat(s['My P&L (AUD)'])).filter(v=>!isNaN(v));
     const avgLoss = pnlVals.length ? pnlVals.reduce((a,b)=>a+b,0)/pnlVals.length : null;
     const holdVals = rows.map(s=>parseFloat(s['Hold Time (Hours)'])).filter(v=>!isNaN(v));
     const avgHold = holdVals.length ? holdVals.reduce((a,b)=>a+b,0)/holdVals.length : null;
     const totalPnl = rows.reduce((a,s)=>a+(parseFloat(s['My P&L (AUD)'])||0),0);
     return { r, n: rows.length, avgLoss, avgHold, totalPnl };
-  });
+  }).filter(x=>x.n>0);
 
   const hasData = reasonData.some(x=>x.n>0);
   if(hasData){
@@ -1586,14 +1651,17 @@ function buildAnalytics(){
   document.getElementById('overrideNote').innerHTML = hasData
     ? (() => {
         const stopped = reasonData.find(x=>x.r==='Stopped out');
+        const short = reasonData.find(x=>x.r==='Closed early (Short)');
         const dead = reasonData.find(x=>x.r==='Dead-trade exit');
-        if(stopped?.n && dead?.n && stopped.avgLoss!==null && dead.avgLoss!==null){
-          const worse = Math.abs(dead.avgLoss) > Math.abs(stopped.avgLoss);
-          return `<span style="color:var(--text3)">Dead-trade exits average <b style="color:${worse?'#ff5a5f':'#3ddc84'}">$${Math.abs(dead.avgLoss).toFixed(2)}</b> loss over <b>${dead.avgHold?.toFixed(1)}h</b> held, vs stop-outs averaging <b>$${Math.abs(stopped.avgLoss).toFixed(2)}</b> over <b>${stopped.avgHold?.toFixed(1)}h</b>. ${worse ? 'Drift is costing more than a clean stop would — worth checking the dead-trade threshold.' : 'Dead-trade exits are cutting losses smaller than a clean stop — the logic is doing its job.'}</span>`;
+        const other = dead?.n ? dead : short;
+        const otherLabel = dead?.n ? 'Dead-trade exits' : 'Early closes (Short)';
+        if(stopped?.n && other?.n && stopped.avgLoss!==null && other.avgLoss!==null){
+          const worse = Math.abs(other.avgLoss) > Math.abs(stopped.avgLoss);
+          return `<span style="color:var(--text3)">${otherLabel} average <b style="color:${worse?'#ff5a5f':'#3ddc84'}">$${Math.abs(other.avgLoss).toFixed(2)}</b> loss over <b>${other.avgHold?.toFixed(1)}h</b> held, vs stop-outs averaging <b>$${Math.abs(stopped.avgLoss).toFixed(2)}</b> over <b>${stopped.avgHold?.toFixed(1)}h</b>. ${worse ? 'Drift/early closes are costing more than a clean stop would — worth checking the exit threshold.' : 'Early closes are cutting losses smaller than a clean stop — the logic is doing its job.'}</span>`;
         }
         return '<span style="color:var(--text3)">Not enough of both categories to compare yet.</span>';
       })()
-    : '<span style="color:var(--text3)">No stopped-out or dead-trade-exit losses in range (manual closes excluded from this comparison).</span>';
+    : '<span style="color:var(--text3)">No stopped-out or early-close losses in range.</span>';
 
   buildDeadTradeTimeClustering(losses, classifyExit);
 
@@ -1655,7 +1723,7 @@ function buildAnalytics(){
 }
 
 function fIndicatorStats(){
-  const v2 = filterSignalsByRange(SIGS.filter(s=>s['Config Version']==='mom-v2'));
+  const v2 = filterSignalsByRange(SIGS.filter(s=>s['Config Version']==='mom-v2' && s['Auto Trade']==='Traded'));
   const decided = v2.filter(s=>isDecided(s['System Outcome']||s['My Outcome']||''));
   const stats = {};
   F_KEYS.forEach(fk=>{
@@ -1664,9 +1732,10 @@ function fIndicatorStats(){
       const fv = fValuesFor(s);
       if(!(fk in fv)) return;
       const val = fv[fk];
-      if(!byValue[val]) byValue[val] = {win:0, total:0};
+      if(!byValue[val]) byValue[val] = {win:0, total:0, pnl:0};
       byValue[val].total++;
       if(isWin(s['System Outcome']||s['My Outcome']||'')) byValue[val].win++;
+      byValue[val].pnl += parseFloat(s['My P&L (AUD)'])||0;
     });
     stats[fk] = byValue;
   });
@@ -1701,19 +1770,22 @@ function buildDeadTradeTimeClustering(losses, classifyExit){
     return { hour: exitTime.getHours(), reason: classifyExit(s) };
   }).filter(Boolean);
 
-  const deadRows = withExitHour.filter(x=>x.reason==='Dead-trade exit');
+  const deadRows = withExitHour.filter(x=>x.reason==='Dead-trade exit' || x.reason==='Closed early (Short)');
   const stopRows = withExitHour.filter(x=>x.reason==='Stopped out');
 
   if(!deadRows.length){
     const totalLosses = losses.length;
-    const hasDeadLabel = losses.some(s=>(outcomeOf(s)||'').toLowerCase().includes('dead trade'));
+    const hasDeadLabel = losses.some(s=>{
+      const o = (outcomeOf(s)||'').toLowerCase();
+      return o.includes('dead trade') || o.includes('(short)');
+    });
     let msg;
     if(totalLosses===0){
       msg = 'No losing trades in range yet.';
     } else if(!hasDeadLabel){
-      msg = `No trades in range are labelled as a dead-trade exit (checked ${totalLosses} loss${totalLosses===1?'':'es'}). Either the dead-trade exit logic hasn\'t fired yet, or your outcome labels use different wording than "Dead Trade".`;
+      msg = `No trades in range are labelled as an early/dead-trade-style close (checked ${totalLosses} loss${totalLosses===1?'':'es'}).`;
     } else {
-      msg = 'Dead-trade exits exist but none have a usable exit timestamp (checked System Result Date/Time, then Date+Hold Time as fallback).';
+      msg = 'Early-close losses exist but none have a usable exit timestamp (checked System Result Date/Time, then Date+Hold Time as fallback).';
     }
     document.getElementById('deadTradeTimeNote').innerHTML = `<span style="color:var(--text3)">${msg}</span>`;
     const ctx = document.getElementById('deadTradeTimeChart').getContext('2d');
@@ -1728,7 +1800,7 @@ function buildDeadTradeTimeClustering(losses, classifyExit){
   charts.deadTradeTime = new Chart(document.getElementById('deadTradeTimeChart').getContext('2d'), {
     type:'bar',
     data:{ labels: hours.map(h=>String(h).padStart(2,'0')+':00'), datasets:[
-      { label:'Dead-trade exit', data: deadCounts, backgroundColor:'#ffb454', borderWidth:0, borderRadius:2 },
+      { label:'Early close / dead-trade exit', data: deadCounts, backgroundColor:'#ffb454', borderWidth:0, borderRadius:2 },
       { label:'Stopped out', data: stopCounts, backgroundColor:'#3a4150', borderWidth:0, borderRadius:2 }
     ]},
     options:{ responsive:true, maintainAspectRatio:false,
@@ -1744,10 +1816,10 @@ function buildDeadTradeTimeClustering(losses, classifyExit){
 
   let note;
   if(totalDead<5){
-    note = `Only ${totalDead} dead-trade exit(s) in range — too few to see a real time-of-day pattern yet.`;
+    note = `Only ${totalDead} early/dead-trade close(s) in range — too few to see a real time-of-day pattern yet.`;
   } else if(peakHours.length<=2 && peakShare>=30){
     const peakLabel = peakHours.map(h=>String(h).padStart(2,'0')+':00').join(' / ');
-    note = `Dead-trade exits cluster around <b>${peakLabel} AEST</b> — ${maxDead} of ${totalDead} (${peakShare.toFixed(0)}%) happen in that window. Worth checking whether that's a session changeover or low-liquidity gap rather than treating dead trades as random drift.`;
+    note = `Early/dead-trade closes cluster around <b>${peakLabel} AEST</b> — ${maxDead} of ${totalDead} (${peakShare.toFixed(0)}%) happen in that window. Worth checking whether that's a session changeover or low-liquidity gap rather than treating these as random drift.`;
   } else {
     note = `Dead-trade exits (n=${totalDead}) are fairly spread across the day rather than clustering at specific hours — doesn't look like a liquidity-gap-at-a-specific-time problem.`;
   }
@@ -1839,7 +1911,7 @@ function buildSessionModeHeatmap(exec){
 
 function buildFSummary(){
   const stats = fIndicatorStats();
-  const v2 = SIGS.filter(s=>s['Config Version']==='mom-v2');
+  const v2 = filterSignalsByRange(SIGS.filter(s=>s['Config Version']==='mom-v2' && s['Auto Trade']==='Traded'));
   const allDecided = v2.filter(s=>isDecided(s['System Outcome']||s['My Outcome']||''));
   const allWins = allDecided.filter(s=>isWin(s['System Outcome']||s['My Outcome']||''));
   const baselineWR = allDecided.length ? allWins.length/allDecided.length*100 : 0;
@@ -1959,7 +2031,7 @@ function buildFIndicators(){
   if(!hasData) return;
 
   const stats = fIndicatorStats();
-  const v2 = filterSignalsByRange(SIGS.filter(s=>s['Config Version']==='mom-v2'));
+  const v2 = filterSignalsByRange(SIGS.filter(s=>s['Config Version']==='mom-v2' && s['Auto Trade']==='Traded'));
   const allDecided = v2.filter(s=>isDecided(s['System Outcome']||s['My Outcome']||''));
   const allWins = allDecided.filter(s=>isWin(s['System Outcome']||s['My Outcome']||''));
   const baselineWR = allDecided.length ? allWins.length/allDecided.length*100 : 0;
@@ -2020,12 +2092,51 @@ function buildFIndicators(){
     </div>`;
   }).join('');
 
+  buildFPnlGrid(stats);
   buildFIndicatorTrends();
+}
+
+function buildFPnlGrid(stats){
+  const grid = document.getElementById('fPnlGrid');
+  const indicatorsWithPnl = F_KEYS.map(fk=>{
+    const byValue = stats[fk];
+    const vals = Object.keys(byValue).map(Number).sort((a,b)=>a-b);
+    if(!vals.length) return null;
+    return { fk, vals: vals.map(v=>({ v, pnl: byValue[v].pnl, n: byValue[v].total, wr: byValue[v].total ? byValue[v].win/byValue[v].total*100 : 0 })) };
+  }).filter(Boolean);
+
+  if(!indicatorsWithPnl.length){
+    grid.innerHTML = '<span style="color:var(--text3);font-size:13px">No F-indicator P&amp;L data yet.</span>';
+    return;
+  }
+
+  grid.innerHTML = indicatorsWithPnl.map(ind=>{
+    const maxAbs = Math.max(...ind.vals.map(x=>Math.abs(x.pnl)), 1);
+    const rows = ind.vals.map(x=>{
+      const barColor = x.pnl>=0 ? '#3ddc84' : '#ff5a5f';
+      const widthPct = Math.abs(x.pnl)/maxAbs*100;
+      const lowN = x.n<8;
+      return `<div style="display:flex;align-items:center;gap:8px;margin:5px 0">
+        <span style="width:36px;font-size:11px;color:var(--text3)">${ind.fk}:${x.v}</span>
+        <div style="flex:1;background:var(--bg3);border-radius:4px;height:14px;overflow:hidden;position:relative;display:flex;align-items:center">
+          <div style="width:${widthPct}%;background:${barColor};height:100%;opacity:${lowN?0.55:1}"></div>
+        </div>
+        <span style="width:78px;font-size:11px;text-align:right;color:${x.pnl>=0?'#3ddc84':'#ff5a5f'}">${x.pnl>=0?'+':''}$${x.pnl.toFixed(2)}</span>
+      </div>`;
+    }).join('');
+    const totalPnl = ind.vals.reduce((a,x)=>a+x.pnl,0);
+    const totalN = ind.vals.reduce((a,x)=>a+x.n,0);
+    return `<div class="card">
+      <h3>${ind.fk} <span class="hint">${F_LABELS[ind.fk]||''}</span></h3>
+      ${rows}
+      <div style="margin-top:8px;font-size:11.5px;color:var(--text3)">net across all values: <b style="color:${totalPnl>=0?'#3ddc84':'#ff5a5f'}">${totalPnl>=0?'+':''}$${totalPnl.toFixed(2)}</b> · ${totalN} trades · faded bars = under 8 samples</div>
+    </div>`;
+  }).join('');
 }
 
 function buildFIndicatorTrends(){
   const grid = document.getElementById('fTrendGrid');
-  const v2 = SIGS.filter(s=>s['Config Version']==='mom-v2' && isDecided(s['My Outcome']||s['System Outcome']||''));
+  const v2 = SIGS.filter(s=>s['Config Version']==='mom-v2' && s['Auto Trade']==='Traded' && isDecided(s['My Outcome']||s['System Outcome']||''));
 
   const indicatorsWithData = F_KEYS.map(fk=>{
     const rows = v2.map(s=>{

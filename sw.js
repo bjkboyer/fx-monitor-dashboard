@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fx-monitor-shell-v1';
+const CACHE_NAME = 'fx-monitor-shell-v2';
 const SHELL_ASSETS = [
   './index.html',
   './manifest.json',
